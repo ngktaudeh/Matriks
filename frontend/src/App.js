@@ -22,6 +22,8 @@ import {
   Vault,
   ArrowDownUp,
   Info,
+  Image as ImageIcon,
+  ImagePlus,
   Download,
   Upload,
   LogOut,
@@ -70,7 +72,7 @@ const Tag = ({ children }) => (
   </span>
 );
 
-const CopyButton = ({ text, testid }) => {
+const CopyButton = ({ text, testid, label = "Copy" }) => {
   const [copied, setCopied] = useState(false);
   const timer = useRef(null);
 
@@ -103,7 +105,71 @@ const CopyButton = ({ text, testid }) => {
       }`}
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
-      {copied ? "Copied!" : "Copy"}
+      {copied ? "Copied!" : label}
+    </button>
+  );
+};
+
+const CopyImageButton = ({ imageUrl, testid, label = "Copy Image" }) => {
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef(null);
+
+  const onCopy = async () => {
+    if (!imageUrl || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) throw new Error("Could not fetch image");
+      const blob = await res.blob();
+
+      const canWriteImage =
+        typeof ClipboardItem !== "undefined" &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.write === "function";
+
+      if (!canWriteImage) {
+        window.open(imageUrl, "_blank", "noopener,noreferrer");
+        toast.error(
+          "Your browser doesn't support copying images directly — right-click the image to copy or save it"
+        );
+        return;
+      }
+
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob }),
+      ]);
+      setCopied(true);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      toast.error(err.message || "Could not copy image");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  return (
+    <button
+      data-testid={testid}
+      onClick={onCopy}
+      disabled={!imageUrl || busy}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${
+        copied
+          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+      }`}
+    >
+      {copied ? (
+        <Check size={14} />
+      ) : busy ? (
+        <Loader2 size={14} className="animate-spin" />
+      ) : (
+        <ImageIcon size={14} />
+      )}
+      {copied ? "Copied!" : label}
     </button>
   );
 };
@@ -112,15 +178,30 @@ const CopyButton = ({ text, testid }) => {
 /*  Card                                                               */
 /* ------------------------------------------------------------------ */
 
-const ItemCard = ({ item, onEdit, onDelete, onToggleFav }) => (
+const ItemCard = ({ item, onOpen, onEdit, onDelete, onToggleFav }) => (
   <div
     data-testid={`item-card-${item.id}`}
-    className="group flex flex-col rounded-xl border border-border bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+    className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
   >
+    {item.image_url && (
+      <div
+        className="-mx-5 -mt-5 mb-4 cursor-pointer overflow-hidden rounded-t-xl"
+        onClick={() => onOpen(item)}
+      >
+        <img
+          data-testid={`item-image-${item.id}`}
+          src={item.image_url}
+          alt={item.title}
+          className="aspect-video w-full object-cover"
+        />
+      </div>
+    )}
+
     <div className="flex items-start justify-between gap-3">
       <h3
         data-testid={`item-title-${item.id}`}
-        className="font-sans text-base font-semibold leading-snug text-card-foreground line-clamp-2"
+        onClick={() => onOpen(item)}
+        className="cursor-pointer font-sans text-base font-semibold leading-snug text-card-foreground line-clamp-2 hover:text-primary"
       >
         {item.title}
       </h3>
@@ -141,6 +222,15 @@ const ItemCard = ({ item, onEdit, onDelete, onToggleFav }) => (
       </button>
     </div>
 
+    {item.subtitle && (
+      <p
+        data-testid={`item-subtitle-${item.id}`}
+        className="mt-1 font-sans text-sm text-muted-foreground line-clamp-1"
+      >
+        {item.subtitle}
+      </p>
+    )}
+
     <p className="mt-2 flex-1 whitespace-pre-wrap break-words font-serif text-[15px] leading-relaxed text-muted-foreground line-clamp-4">
       {item.content}
     </p>
@@ -158,7 +248,17 @@ const ItemCard = ({ item, onEdit, onDelete, onToggleFav }) => (
         {item.category}
       </span>
       <div className="flex items-center gap-0.5">
-        <CopyButton text={item.content} testid={`copy-btn-${item.id}`} />
+        {item.content && (
+          <CopyButton
+            text={item.content}
+            testid={`copy-desc-btn-${item.id}`}
+            label="Copy Desc"
+          />
+        )}
+        <CopyImageButton
+          imageUrl={item.image_url}
+          testid={`copy-image-btn-${item.id}`}
+        />
         <button
           data-testid={`edit-btn-${item.id}`}
           onClick={() => onEdit(item)}
@@ -187,27 +287,64 @@ const ItemCard = ({ item, onEdit, onDelete, onToggleFav }) => (
 const emptyDraft = (category, fallback = "Notes") => ({
   id: null,
   title: "",
+  subtitle: "",
   content: "",
+  image_url: null,
   tags: [],
   category:
     category && !["All", "Favorites"].includes(category) ? category : fallback,
   favorite: false,
 });
 
-const ItemModal = ({ open, draft, categories, onClose, onSave }) => {
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+
+const ItemModal = ({ open, draft, categories, userId, onClose, onSave }) => {
   const [form, setForm] = useState(draft);
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     if (open) {
       setForm(draft);
       setTagInput((draft.tags || []).join(", "));
       setSaving(false);
+      setUploading(false);
+      setImageError("");
+      setDragOver(false);
     }
   }, [open, draft]);
 
   if (!open) return null;
+
+  const validateFile = (file) => {
+    if (!file) return false;
+    if (!file.type.startsWith("image/")) {
+      setImageError("Please choose an image file (jpg, jpeg, png, webp, gif, svg).");
+      return false;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError("Image must be 5MB or smaller.");
+      return false;
+    }
+    setImageError("");
+    return true;
+  };
+
+  const onPickFile = (file) => {
+    if (!validateFile(file)) return;
+    setForm((f) => ({ ...f, image_file: file, image_url: URL.createObjectURL(file) }));
+  };
+
+  const onRemoveImage = () => {
+    if (form.image_url && !form.image_file) {
+      // existing image: mark for removal, clear preview
+    }
+    setForm((f) => ({ ...f, image_file: null, image_url: null, image_removed: true }));
+  };
 
   const save = async () => {
     if (!form.title.trim()) return;
@@ -215,9 +352,51 @@ const ItemModal = ({ open, draft, categories, onClose, onSave }) => {
       .split(",")
       .map((t) => t.trim().replace(/^#/, ""))
       .filter(Boolean);
+
     setSaving(true);
-    const ok = await onSave({ ...form, title: form.title.trim(), tags });
-    if (!ok) setSaving(false);
+    try {
+      let image_url = form.image_url || null;
+
+      if (form.image_file) {
+        setUploading(true);
+        const safeName =
+          form.image_file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120) ||
+          "image";
+        const path = `${userId}/${Date.now()}-${safeName}`;
+
+        const { error: upErr } = await supabase.storage
+          .from("item-images")
+          .upload(path, form.image_file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: form.image_file.type,
+          });
+        if (upErr) throw upErr;
+
+        const { data: pub } = supabase.storage
+          .from("item-images")
+          .getPublicUrl(path);
+        image_url = pub?.publicUrl || null;
+        setUploading(false);
+      } else if (form.image_removed) {
+        image_url = null;
+      }
+
+      const ok = await onSave({
+        ...form,
+        title: form.title.trim(),
+        image_url,
+        tags,
+      });
+      if (!ok) {
+        setSaving(false);
+        setUploading(false);
+      }
+    } catch (err) {
+      toast.error(err.message || "Image upload failed");
+      setSaving(false);
+      setUploading(false);
+    }
   };
 
   const catOptions = categories.filter(
@@ -263,7 +442,23 @@ const ItemModal = ({ open, draft, categories, onClose, onSave }) => {
 
           <div>
             <label className="mb-1.5 block font-sans text-sm font-medium">
-              Content
+              Subtitle{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </label>
+            <input
+              data-testid="modal-subtitle-input"
+              value={form.subtitle || ""}
+              onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+              placeholder="A short, muted line under the title"
+              className="w-full rounded-lg border border-input bg-background px-3.5 py-2.5 font-sans text-sm outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block font-sans text-sm font-medium">
+              Description
             </label>
             <textarea
               data-testid="modal-content-input"
@@ -272,6 +467,99 @@ const ItemModal = ({ open, draft, categories, onClose, onSave }) => {
               rows={8}
               placeholder="Paste anything — a password, a note, a link, a snippet…"
               className="vault-scroll w-full resize-y rounded-lg border border-input bg-background px-3.5 py-3 font-serif text-[15px] leading-relaxed outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block font-sans text-sm font-medium">
+              Image{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional, 5MB max)
+              </span>
+            </label>
+
+            {form.image_url ? (
+              <div className="overflow-hidden rounded-lg border border-border">
+                <img
+                  data-testid="modal-image-preview"
+                  src={form.image_url}
+                  alt="Preview"
+                  className="aspect-video w-full object-cover"
+                />
+                <div className="flex items-center justify-between gap-2 border-t border-border bg-secondary/40 px-3 py-2">
+                  <span className="truncate font-sans text-xs text-muted-foreground">
+                    {form.image_file?.name || "Current image"}
+                  </span>
+                  <button
+                    data-testid="modal-image-remove-btn"
+                    onClick={onRemoveImage}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-sans text-xs font-semibold text-destructive transition-colors duration-150 hover:bg-destructive/10"
+                  >
+                    <Trash2 size={14} />
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                data-testid="modal-image-dropzone"
+                role="button"
+                tabIndex={0}
+                onClick={() => fileRef.current?.click()}
+                onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) onPickFile(file);
+                }}
+                className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors duration-150 ${
+                  dragOver
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50 hover:bg-secondary/40"
+                }`}
+              >
+                {uploading ? (
+                  <Loader2 size={22} className="animate-spin text-primary" />
+                ) : (
+                  <ImagePlus size={22} className="text-muted-foreground" />
+                )}
+                <p className="mt-2 font-sans text-sm font-medium">
+                  {uploading
+                    ? "Uploading…"
+                    : "Click to browse or drag & drop an image"}
+                </p>
+                <p className="mt-1 font-sans text-xs text-muted-foreground">
+                  JPG, PNG, WebP, GIF or SVG · up to 5MB
+                </p>
+              </div>
+            )}
+
+            {imageError && (
+              <p
+                data-testid="modal-image-error"
+                className="mt-2 font-sans text-xs font-medium text-destructive"
+              >
+                {imageError}
+              </p>
+            )}
+
+            <input
+              ref={fileRef}
+              data-testid="modal-image-input"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onPickFile(file);
+                e.target.value = "";
+              }}
             />
           </div>
 
@@ -340,11 +628,128 @@ const ItemModal = ({ open, draft, categories, onClose, onSave }) => {
           <button
             data-testid="modal-save-btn"
             onClick={save}
-            disabled={!form.title.trim() || saving}
+            disabled={!form.title.trim() || saving || uploading}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saving && <Loader2 size={15} className="animate-spin" />}
+            {(saving || uploading) && <Loader2 size={15} className="animate-spin" />}
             {form.id ? "Save changes" : "Create item"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Detail view modal                                                  */
+/* ------------------------------------------------------------------ */
+
+const DetailModal = ({ item, onClose, onEdit, onDelete }) => {
+  if (!item) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm animate-fade-in sm:items-center sm:p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        data-testid="detail-modal"
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl animate-scale-in sm:rounded-2xl"
+      >
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="font-sans text-lg font-semibold">Item details</h2>
+          <button
+            data-testid="detail-close-btn"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="vault-scroll flex-1 overflow-y-auto">
+          {item.image_url && (
+            <img
+              data-testid="detail-image"
+              src={item.image_url}
+              alt={item.title}
+              className="max-h-72 w-full object-cover"
+            />
+          )}
+
+          <div className="space-y-4 px-6 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3
+                  data-testid="detail-title"
+                  className="font-sans text-xl font-bold leading-snug"
+                >
+                  {item.title}
+                </h3>
+                {item.subtitle && (
+                  <p
+                    data-testid="detail-subtitle"
+                    className="mt-1 font-sans text-sm text-muted-foreground"
+                  >
+                    {item.subtitle}
+                  </p>
+                )}
+              </div>
+              <span className="shrink-0 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {item.category}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2 border-b border-border pb-4">
+              {item.content && (
+                <CopyButton
+                  text={item.content}
+                  testid="detail-copy-desc-btn"
+                  label="Copy Description"
+                />
+              )}
+              <CopyImageButton
+                imageUrl={item.image_url}
+                testid="detail-copy-image-btn"
+                label="Copy Image"
+              />
+            </div>
+
+            {item.content && (
+              <p
+                data-testid="detail-content"
+                className="whitespace-pre-wrap break-words font-serif text-[15px] leading-relaxed text-foreground"
+              >
+                {item.content}
+              </p>
+            )}
+
+            {item.tags?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {item.tags.map((t) => (
+                  <Tag key={t}>{t}</Tag>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
+          <button
+            data-testid="detail-delete-btn"
+            onClick={() => onDelete(item)}
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 font-sans text-sm font-medium text-destructive transition-colors duration-150 hover:bg-destructive/10"
+          >
+            <Trash2 size={15} />
+            Delete
+          </button>
+          <button
+            data-testid="detail-edit-btn"
+            onClick={() => onEdit(item)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:opacity-90"
+          >
+            <Pencil size={15} />
+            Edit
           </button>
         </div>
       </div>
@@ -954,6 +1359,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState(emptyDraft("Notes"));
+  const [detailItem, setDetailItem] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [catModalOpen, setCatModalOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState(null);
@@ -1081,7 +1487,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
     });
     if (q) {
       list = list.filter((it) =>
-        `${it.title} ${it.content} ${(it.tags || []).join(" ")}`
+        `${it.title} ${it.subtitle || ""} ${it.content} ${(it.tags || []).join(" ")}`
           .toLowerCase()
           .includes(q)
       );
@@ -1109,21 +1515,30 @@ const Dashboard = ({ session, theme, setTheme }) => {
   };
   const openEdit = (item) => {
     setDraft(item);
+    setDetailItem(null);
     setModalOpen(true);
+  };
+
+  const openDetail = (item) => {
+    setDetailItem(item);
   };
 
   const saveItem = async (form) => {
     try {
+      const payload = {
+        title: form.title,
+        subtitle: form.subtitle || "",
+        content: form.content,
+        image_url: form.image_url || null,
+        tags: form.tags,
+        category: form.category,
+        favorite: form.favorite,
+      };
+
       if (form.id) {
         const { data, error } = await supabase
           .from("items")
-          .update({
-            title: form.title,
-            content: form.content,
-            tags: form.tags,
-            category: form.category,
-            favorite: form.favorite,
-          })
+          .update(payload)
           .eq("id", form.id)
           .select()
           .single();
@@ -1133,14 +1548,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
       } else {
         const { data, error } = await supabase
           .from("items")
-          .insert({
-            user_id: userId,
-            title: form.title,
-            content: form.content,
-            tags: form.tags,
-            category: form.category,
-            favorite: form.favorite,
-          })
+          .insert({ ...payload, user_id: userId })
           .select()
           .single();
         if (error) throw error;
@@ -1300,9 +1708,11 @@ const Dashboard = ({ session, theme, setTheme }) => {
     const payload = {
       exportedAt: new Date().toISOString(),
       categories: customCats,
-      items: items.map(({ title, content, tags, category, favorite }) => ({
+      items: items.map(({ title, subtitle, content, image_url, tags, category, favorite }) => ({
         title,
+        subtitle,
         content,
+        image_url,
         tags,
         category,
         favorite,
@@ -1334,7 +1744,9 @@ const Dashboard = ({ session, theme, setTheme }) => {
       const rows = incoming.map((it) => ({
         user_id: userId,
         title: String(it.title || "Untitled"),
+        subtitle: String(it.subtitle || ""),
         content: String(it.content || ""),
+        image_url: it.image_url || null,
         tags: Array.isArray(it.tags) ? it.tags : [],
         category: it.category || "Notes",
         favorite: Boolean(it.favorite),
@@ -1522,6 +1934,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
                 <ItemCard
                   key={item.id}
                   item={item}
+                  onOpen={openDetail}
                   onEdit={openEdit}
                   onDelete={setToDelete}
                   onToggleFav={toggleFav}
@@ -1536,8 +1949,18 @@ const Dashboard = ({ session, theme, setTheme }) => {
         open={modalOpen}
         draft={draft}
         categories={categories}
+        userId={userId}
         onClose={() => setModalOpen(false)}
         onSave={saveItem}
+      />
+      <DetailModal
+        item={detailItem}
+        onClose={() => setDetailItem(null)}
+        onEdit={openEdit}
+        onDelete={(item) => {
+          setDetailItem(null);
+          setToDelete(item);
+        }}
       />
       <NewCategoryModal
         open={catModalOpen}
