@@ -1,0 +1,13 @@
+[project]
+name = "knowledge-vault-backend"
+version = "0.1.0"
+description = "Health-check only backend. Application data lives in Supabase (Postgres + Auth + RLS)."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.110.1",
+    "uvicorn==0.25.0",
+]
+
+# Application (not a distributable package) — uv should not try to build it.
+[tool.uv]
+package = false
