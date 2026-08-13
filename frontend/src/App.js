@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
 import {
   Search,
   Plus,
@@ -25,9 +26,9 @@ import {
 /*  Constants & helpers                                                */
 /* ------------------------------------------------------------------ */
 
-const STORAGE_KEY = "vault-items";
-const CAT_KEY = "vault-categories";
 const THEME_KEY = "vault-theme";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Categories that are real buckets an item can live in.
 const BUILTIN_CATEGORIES = ["Credentials", "Notes", "Links", "Archive"];
@@ -47,73 +48,6 @@ const SORTS = [
   { id: "fav", label: "Favorites first" },
 ];
 
-const uid = () =>
-  Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-
-const seedItems = () => {
-  const now = Date.now();
-  return [
-    {
-      id: uid(),
-      title: "Production Database URL",
-      content:
-        "postgres://vault_admin:S7r0ng-P@ss@db.internal.prod.acme.io:5432/knowledge_vault?sslmode=require",
-      tags: ["db", "prod", "secret"],
-      category: "Credentials",
-      favorite: true,
-      createdAt: now - 1000 * 60 * 5,
-    },
-    {
-      id: uid(),
-      title: "Onboarding checklist copy",
-      content:
-        "Welcome aboard. Over the next few days we'll get you set up with the tools, access, and context you need. Start by reading the team handbook, then pair with your onboarding buddy on your first small task. Ask questions early and often — curiosity is a feature here, not a bug.",
-      tags: ["writing", "hr", "template"],
-      category: "Notes",
-      favorite: false,
-      createdAt: now - 1000 * 60 * 60 * 3,
-    },
-    {
-      id: uid(),
-      title: "Design system reference",
-      content: "https://www.figma.com/file/acme-design-system/Knowledge-Vault",
-      tags: ["design", "figma"],
-      category: "Links",
-      favorite: true,
-      createdAt: now - 1000 * 60 * 60 * 26,
-    },
-    {
-      id: uid(),
-      title: "SMTP relay credentials",
-      content:
-        "host: smtp.mailrelay.io\nport: 587\nuser: no-reply@acme.io\npass: mR-9x2L…kQ (rotate quarterly)",
-      tags: ["email", "smtp"],
-      category: "Credentials",
-      favorite: false,
-      createdAt: now - 1000 * 60 * 60 * 50,
-    },
-    {
-      id: uid(),
-      title: "Quarterly retro notes",
-      content:
-        "What went well: shipped Vault v2, cut load time by 40%. What to improve: flaky CI, unclear ownership on the billing surface. Action items: add ownership map, stabilise the e2e suite, and protect deep-work mornings.",
-      tags: ["team", "retro"],
-      category: "Notes",
-      favorite: false,
-      createdAt: now - 1000 * 60 * 60 * 90,
-    },
-    {
-      id: uid(),
-      title: "Old staging API key",
-      content: "sk_stg_9f8a7b6c5d4e3f2a1b0c-DEPRECATED-do-not-use",
-      tags: ["deprecated", "api"],
-      category: "Archive",
-      favorite: false,
-      createdAt: now - 1000 * 60 * 60 * 200,
-    },
-  ];
-};
-
 const load = (key, fallback) => {
   try {
     const raw = localStorage.getItem(key);
@@ -122,29 +56,6 @@ const load = (key, fallback) => {
     return fallback;
   }
 };
-
-/* ------------------------------------------------------------------ */
-/*  Reducer                                                            */
-/* ------------------------------------------------------------------ */
-
-function itemsReducer(state, action) {
-  switch (action.type) {
-    case "add":
-      return [action.item, ...state];
-    case "update":
-      return state.map((i) =>
-        i.id === action.item.id ? { ...i, ...action.item } : i
-      );
-    case "delete":
-      return state.filter((i) => i.id !== action.id);
-    case "toggleFav":
-      return state.map((i) =>
-        i.id === action.id ? { ...i, favorite: !i.favorite } : i
-      );
-    default:
-      return state;
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /*  Small UI pieces                                                    */
@@ -579,11 +490,10 @@ const Sidebar = ({
 /* ------------------------------------------------------------------ */
 
 export default function App() {
-  const [items, dispatch] = useReducer(itemsReducer, null, () =>
-    load(STORAGE_KEY, seedItems())
-  );
-  const [customCats, setCustomCats] = useState(() => load(CAT_KEY, []));
+  const [items, setItems] = useState([]);
+  const [customCats, setCustomCats] = useState([]);
   const [theme, setTheme] = useState(() => load(THEME_KEY, "light"));
+  const [loading, setLoading] = useState(true);
 
   const [active, setActive] = useState("All");
   const [search, setSearch] = useState("");
@@ -594,13 +504,25 @@ export default function App() {
   const [draft, setDraft] = useState(emptyDraft("Notes"));
   const [toDelete, setToDelete] = useState(null);
 
-  /* ---- persistence ---- */
+  /* ---- initial load from server ---- */
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
-  useEffect(() => {
-    localStorage.setItem(CAT_KEY, JSON.stringify(customCats));
-  }, [customCats]);
+    (async () => {
+      try {
+        const [itemsRes, catsRes] = await Promise.all([
+          axios.get(`${API}/items`),
+          axios.get(`${API}/categories`),
+        ]);
+        setItems(itemsRes.data);
+        setCustomCats(catsRes.data);
+      } catch (e) {
+        console.error("Failed to load vault", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  /* ---- theme is a per-browser preference ---- */
   useEffect(() => {
     localStorage.setItem(THEME_KEY, JSON.stringify(theme));
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -659,22 +581,58 @@ export default function App() {
     setDraft(item);
     setModalOpen(true);
   };
-  const saveItem = (form) => {
-    if (form.id) {
-      dispatch({ type: "update", item: form });
-    } else {
-      dispatch({
-        type: "add",
-        item: { ...form, id: uid(), createdAt: Date.now() },
-      });
+  const saveItem = async (form) => {
+    try {
+      if (form.id) {
+        const { data } = await axios.put(`${API}/items/${form.id}`, {
+          title: form.title,
+          content: form.content,
+          tags: form.tags,
+          category: form.category,
+          favorite: form.favorite,
+        });
+        setItems((prev) => prev.map((i) => (i.id === data.id ? data : i)));
+      } else {
+        const { data } = await axios.post(`${API}/items`, {
+          title: form.title,
+          content: form.content,
+          tags: form.tags,
+          category: form.category,
+          favorite: form.favorite,
+        });
+        setItems((prev) => [data, ...prev]);
+      }
+      setModalOpen(false);
+    } catch (e) {
+      console.error("Save failed", e);
     }
-    setModalOpen(false);
   };
-  const confirmDelete = () => {
-    dispatch({ type: "delete", id: toDelete.id });
+  const toggleFav = async (id) => {
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, favorite: !i.favorite } : i))
+    );
+    try {
+      await axios.put(`${API}/items/${id}`, { favorite: !item.favorite });
+    } catch (e) {
+      console.error("Toggle failed", e);
+      setItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, favorite: item.favorite } : i))
+      );
+    }
+  };
+  const confirmDelete = async () => {
+    const id = toDelete.id;
     setToDelete(null);
+    try {
+      await axios.delete(`${API}/items/${id}`);
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } catch (e) {
+      console.error("Delete failed", e);
+    }
   };
-  const addCategory = () => {
+  const addCategory = async () => {
     const name = window.prompt("New category name")?.trim();
     if (!name) return;
     const reserved = categories.map((c) => c.toLowerCase());
@@ -682,9 +640,14 @@ export default function App() {
       window.alert("That category already exists.");
       return;
     }
-    setCustomCats((prev) => [...prev, name]);
-    setActive(name);
-    setDrawerOpen(false);
+    try {
+      const { data } = await axios.post(`${API}/categories`, { name });
+      setCustomCats(data);
+      setActive(name);
+      setDrawerOpen(false);
+    } catch (e) {
+      console.error("Add category failed", e);
+    }
   };
 
   const selectCat = (cat) => {
@@ -808,7 +771,17 @@ export default function App() {
 
         {/* Grid */}
         <main className="vault-scroll flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          {visible.length === 0 ? (
+          {loading ? (
+            <div
+              data-testid="loading-state"
+              className="flex flex-col items-center justify-center py-24 text-center"
+            >
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+              <p className="mt-4 font-sans text-sm text-muted-foreground">
+                Loading your vault…
+              </p>
+            </div>
+          ) : visible.length === 0 ? (
             <div
               data-testid="empty-state"
               className="flex flex-col items-center justify-center py-24 text-center"
@@ -845,7 +818,7 @@ export default function App() {
                   item={item}
                   onEdit={openEdit}
                   onDelete={setToDelete}
-                  onToggleFav={(id) => dispatch({ type: "toggleFav", id })}
+                  onToggleFav={toggleFav}
                 />
               ))}
             </div>
