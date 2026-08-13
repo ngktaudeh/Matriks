@@ -178,15 +178,18 @@ const CopyImageButton = ({ imageUrl, testid, label = "Copy Image" }) => {
 /*  Card                                                               */
 /* ------------------------------------------------------------------ */
 
-const ItemCard = ({ item, onOpen, onEdit, onDelete, onToggleFav }) => (
+const ItemCard = ({ item, onOpen, onOpenImage, onEdit, onDelete, onToggleFav }) => (
   <div
     data-testid={`item-card-${item.id}`}
     className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
   >
     {item.image_url && (
       <div
-        className="-mx-5 -mt-5 mb-4 cursor-pointer overflow-hidden rounded-t-xl"
-        onClick={() => onOpen(item)}
+        className="-mx-5 -mt-5 mb-4 cursor-zoom-in overflow-hidden rounded-t-xl"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenImage(item.image_url);
+        }}
       >
         <img
           data-testid={`item-image-${item.id}`}
@@ -221,15 +224,6 @@ const ItemCard = ({ item, onOpen, onEdit, onDelete, onToggleFav }) => (
         />
       </button>
     </div>
-
-    {item.subtitle && (
-      <p
-        data-testid={`item-subtitle-${item.id}`}
-        className="mt-1 font-sans text-sm text-muted-foreground line-clamp-1"
-      >
-        {item.subtitle}
-      </p>
-    )}
 
     <p className="mt-2 flex-1 whitespace-pre-wrap break-words font-serif text-[15px] leading-relaxed text-muted-foreground line-clamp-4">
       {item.content}
@@ -442,22 +436,6 @@ const ItemModal = ({ open, draft, categories, userId, onClose, onSave }) => {
 
           <div>
             <label className="mb-1.5 block font-sans text-sm font-medium">
-              Subtitle{" "}
-              <span className="font-normal text-muted-foreground">
-                (optional)
-              </span>
-            </label>
-            <input
-              data-testid="modal-subtitle-input"
-              value={form.subtitle || ""}
-              onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
-              placeholder="A short, muted line under the title"
-              className="w-full rounded-lg border border-input bg-background px-3.5 py-2.5 font-sans text-sm outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1.5 block font-sans text-sm font-medium">
               Description
             </label>
             <textarea
@@ -641,10 +619,49 @@ const ItemModal = ({ open, draft, categories, userId, onClose, onSave }) => {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Full-screen image lightbox                                         */
+/* ------------------------------------------------------------------ */
+
+const ImageLightbox = ({ imageUrl, onClose }) => {
+  useEffect(() => {
+    if (!imageUrl) return;
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [imageUrl, onClose]);
+
+  if (!imageUrl) return null;
+
+  return (
+    <div
+      data-testid="image-lightbox"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 animate-fade-in"
+      onClick={onClose}
+    >
+      <button
+        data-testid="lightbox-close-btn"
+        onClick={onClose}
+        className="absolute right-4 top-4 rounded-lg bg-white/10 p-2 text-white transition-colors duration-150 hover:bg-white/20"
+        aria-label="Close image"
+      >
+        <X size={20} />
+      </button>
+      <img
+        data-testid="lightbox-image"
+        src={imageUrl}
+        alt="Full size"
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+      />
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /*  Detail view modal                                                  */
 /* ------------------------------------------------------------------ */
 
-const DetailModal = ({ item, onClose, onEdit, onDelete }) => {
+const DetailModal = ({ item, onClose, onEdit, onDelete, onOpenImage }) => {
   if (!item) return null;
 
   return (
@@ -673,7 +690,8 @@ const DetailModal = ({ item, onClose, onEdit, onDelete }) => {
               data-testid="detail-image"
               src={item.image_url}
               alt={item.title}
-              className="max-h-72 w-full object-cover"
+              onClick={() => onOpenImage(item.image_url)}
+              className="max-h-72 w-full cursor-zoom-in object-cover"
             />
           )}
 
@@ -686,14 +704,6 @@ const DetailModal = ({ item, onClose, onEdit, onDelete }) => {
                 >
                   {item.title}
                 </h3>
-                {item.subtitle && (
-                  <p
-                    data-testid="detail-subtitle"
-                    className="mt-1 font-sans text-sm text-muted-foreground"
-                  >
-                    {item.subtitle}
-                  </p>
-                )}
               </div>
               <span className="shrink-0 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 {item.category}
@@ -1360,6 +1370,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState(emptyDraft("Notes"));
   const [detailItem, setDetailItem] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [catModalOpen, setCatModalOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState(null);
@@ -1521,6 +1532,10 @@ const Dashboard = ({ session, theme, setTheme }) => {
 
   const openDetail = (item) => {
     setDetailItem(item);
+  };
+
+  const openImage = (url) => {
+    setLightboxUrl(url);
   };
 
   const saveItem = async (form) => {
@@ -1935,6 +1950,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
                   key={item.id}
                   item={item}
                   onOpen={openDetail}
+                  onOpenImage={openImage}
                   onEdit={openEdit}
                   onDelete={setToDelete}
                   onToggleFav={toggleFav}
@@ -1961,6 +1977,11 @@ const Dashboard = ({ session, theme, setTheme }) => {
           setDetailItem(null);
           setToDelete(item);
         }}
+        onOpenImage={openImage}
+      />
+      <ImageLightbox
+        imageUrl={lightboxUrl}
+        onClose={() => setLightboxUrl(null)}
       />
       <NewCategoryModal
         open={catModalOpen}
