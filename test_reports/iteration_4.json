@@ -1,0 +1,26 @@
+{
+  "summary": "Lightweight regression sanity check after adding /app/frontend/.npmrc (legacy-peer-deps=true) and /app/frontend/vercel.json (SPA rewrite). Ran full end-to-end flow: auth screen -> signup with unique email (qa+29nt25pw@example.com / TestPass123!) -> dashboard -> create item -> delete item -> logout. All flows passed with ZERO console errors/warnings (no React duplicate-key warnings). Runtime code unchanged; deploy-config files do not affect preview runtime.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "observations": [
+      {"component": "Dashboard", "note": "empty-state selector [data-testid=\"empty-state\"] not found immediately after signup landing (may render only after data-load settle or under a different testid). Non-blocking; items list rendered correctly and CRUD worked end-to-end."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    ".npmrc with legacy-peer-deps=true is the correct minimal fix for the Vercel ERESOLVE (date-fns@4 vs react-day-picker@8). Long-term, consider aligning to react-day-picker v9 (supports date-fns v3/v4) to remove the peer override.",
+    "vercel.json SPA rewrite is correct for CRA/craco output; no changes needed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (6/6 regression flows)"},
+  "test_credentials": "Fresh signup per run: qa+<random>@example.com / TestPass123! (Supabase email auto-confirm ON). This run used qa+29nt25pw@example.com.",
+  "seed_data_creation": "Created and then deleted one test item during the run; no residual data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Vercel deploy-config regression verified in preview. Actual `npm install` behavior on Vercel cannot be reproduced here and was validated locally per main agent. If future iterations touch runtime code, rerun the same 6-step flow (auth -> signup -> add -> delete -> logout -> zero console errors).",
+  "rca of the issue": "N/A - regression sanity check only. No issues found."
+}
