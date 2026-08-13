@@ -1,0 +1,36 @@
+{
+  "summary": "End-to-end Playwright frontend testing of Supabase-migrated Knowledge Vault. Executed the full spec: auth gate, signup, empty state, item CRUD, favorite toggle + Favorites filter, copy button (with 1.5s revert), global search, sorts, styled New Category modal (window.prompt not fired), All tooltip, theme toggle, export JSON download, hidden import file input, delete flow, logout, and post-reload session gone. All 17 primary flows PASSED. One console-level React warning surfaced (duplicate keys) that indicates a data-model bug (see below).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Dashboard categories list (Sidebar + ItemModal select)",
+        "issue": "React 'Encountered two children with the same key' warning fires continuously for keys 'Credentials', 'Notes', 'Links'. The Dashboard hardcodes builtin categories ['All','Favorites','Credentials','Notes','Links', ...customCats, 'Archive'] in useMemo, but fetchCategories() returns a categories row list from Supabase that also contains 'Credentials'/'Notes'/'Links' (likely auto-seeded per user in the categories table), producing duplicates. Result: sidebar renders duplicate buttons and modal select renders duplicate <option>s, and any counts/selection behavior around those cats is unreliable.",
+        "selector": "[data-testid='category-credentials'], [data-testid='category-notes'], [data-testid='category-links']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "De-duplicate categories in Dashboard.useMemo `categories`: filter customCats to exclude BUILTIN_CATEGORIES (case-insensitive) before merging, OR change the schema/seed so the `categories` table only contains user custom cats (not the built-ins). Reproduction: sign up a fresh user, open devtools console — warning appears immediately.",
+    "Optionally: in createCategory(), block names that match BUILTIN_CATEGORIES (currently `reserved` uses the merged list which already includes builtins, so that check is fine — the duplication comes from seeded rows)."
+  ],
+  "critical_code_review_comments": [
+    "supabaseClient.js exports `null` when config missing but App.js references `supabase.auth` only inside effects that early-return if !hasSupabaseConfig — OK.",
+    "Dashboard: `categories` list contains built-ins hardcoded AND customCats fetched from DB. If DB seeds built-in names per user, this yields React duplicate-key warnings and duplicate UI entries (bug).",
+    "Toggling favorite off while viewing Favorites causes the card to disappear immediately (verified) — expected but no undo path.",
+    "onImportFile inserts with user_id from client; RLS should be enforced server-side (assumed OK per handoff note).",
+    "No error boundary around Dashboard — a Supabase failure inside realtime handler will only toast, which is acceptable."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped)", "frontend": "100% of specified flows passing; 1 console warning" },
+  "test_credentials": "Fresh signup used: qa+<random>@example.com / TestPass123! (email auto-confirm ON — session issued immediately).",
+  "seed_data_creation": "Created 1 test user via signup and 1 item (deleted at end of test). One custom category 'QASnippets' left behind for that ephemeral user.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 17 specified frontend flows passed. The only outstanding issue is a React duplicate-key warning caused by built-in category names ALSO existing as rows in the Supabase `categories` table for each user. Look at Dashboard.categories useMemo and fetchCategories(); the fix is to dedupe or stop seeding built-ins. Realtime was not explicitly cross-session tested (optional per spec).",
+  "rca of the issue": "Root cause of duplicate-key warning: Dashboard.categories = ['All','Favorites','Credentials','Notes','Links', ...customCats, 'Archive']. customCats comes from supabase.from('categories').select(). The DB (via trigger/seed on signup) inserts rows named 'Credentials','Notes','Links' for the new user, so they appear both as hardcoded strings and inside customCats. Fix: `const customExtras = customCats.filter(c => !BUILTIN_CATEGORIES.includes(c) && !['All','Favorites'].includes(c));` and use that in the memo, or remove built-in seeding from the DB migration/trigger."
+}

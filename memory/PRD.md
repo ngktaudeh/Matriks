@@ -1,38 +1,36 @@
 # Knowledge Vault — PRD
 
 ## Problem Statement
-A frontend-only SaaS dashboard to store large amounts of information that can be copied and edited with ease. React + Tailwind, state in localStorage, no backend.
+A SaaS dashboard to store large amounts of copy-ready, editable information (credentials, notes, links, snippets). Migrated data layer to Supabase so each user's data is private, persistent, synced across devices, and protected by Row Level Security.
 
-## Architecture
-- React (CRA/craco) + Tailwind CSS, single-file app in `/app/frontend/src/App.js`
-- State: `useReducer` for items + `useState` for categories/theme, persisted to localStorage
-- localStorage keys: `vault-items`, `vault-categories`, `vault-theme`
-- Fonts (Tailwind fontFamily): `sans` = Avenir stack (UI chrome), `serif` = EB Garamond stack (body/content)
-
-## User Persona
-Individuals/teams storing credentials, notes, links, snippets they need to copy and edit quickly.
+## Architecture (current)
+- **Frontend**: React (craco) + Tailwind. Single app in `/app/frontend/src/App.js`.
+- **Data layer**: 100% Supabase (Postgres + Auth + RLS + Realtime) via `@supabase/supabase-js@2.45.4`. Client in `/app/frontend/src/lib/supabaseClient.js`.
+- **Auth**: Supabase email+password. Auth gate in `App()`; `Dashboard()` after login.
+- **Backend**: `/app/backend/server.py` reduced to a health-check stub only (no data). MongoDB/motor data routes removed.
+- **Schema/RLS**: `/app/supabase/migrations/0001_init.sql` (tables `items`, `categories`, updated_at trigger, unique (user_id, lower(name)), RLS policies `auth.uid() = user_id`, realtime publication).
+- Env: `REACT_APP_SUPABASE_URL`, `REACT_APP_SUPABASE_ANON_KEY` (+ `.env.example`). Theme stays in localStorage.
 
 ## Core Requirements (static)
-- Full CRUD for items, move between categories
-- One-click copy with "Copied!" feedback (1.5s)
-- Real-time search (title + content + tags)
-- Sorting: Newest / A-Z / Favorites first
-- Per-item favorite toggle
-- localStorage persistence (load on mount, save on change)
-- Responsive: sidebar → hamburger drawer below 768px
-- Informative empty states
-- Dark/light mode
+- Auth (login/signup/logout, session sync via onAuthStateChange)
+- Per-user data isolation via RLS (verified: User B cannot read/delete User A rows)
+- Full CRUD for items + categories via supabase client
+- Copy w/ feedback, real-time search, sorting, favorites
+- Realtime sync across tabs/devices
+- Export/Import JSON, styled New Category modal, "All excludes Archive" tooltip
+- Error toasts (sonner), config-error screen if env missing
+- Responsive drawer, dark/light, Avenir/Garamond typography
 
 ## Implemented (2026-06)
-- Sidebar (categories All/Favorites/Credentials/Notes/Links/Archive + custom, counts, quick search, + New Category)
-- Header (global search, + Add Item, theme toggle)
-- Card grid with title/content preview/tags/category + Copy/Edit/Delete/Favorite
-- Create/Edit modal (title, content textarea, category select, tags, favorite toggle)
-- Delete confirm dialog
-- Seeded demo data on first load
-- Verified 100% via testing agent (iteration_1.json)
+- Full Supabase migration; RLS proven via REST (A/B isolation) and UI signup shows empty per-user vault
+- All 17 UI flows passed (testing agent iteration_3); duplicate-category key warning fixed via defensive de-dupe in `categories` memo
+- README with real setup steps; SQL migration file included and already applied to the live project
 
 ## Backlog (P1/P2)
-- P2: Replace window.prompt New Category with a styled modal
-- P2: Import/export vault as JSON
-- P2: Tooltip clarifying "All" excludes Archive
+- P2: Undo on favorite/delete
+- P2: Password reset / magic link
+- P2: Error boundary around Dashboard
+- P2: Optimistic realtime merge (currently refetch on change)
+
+## Removed
+- FastAPI/MongoDB data routes, motor usage, custom auth — replaced entirely by Supabase.
