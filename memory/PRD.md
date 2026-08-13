@@ -26,6 +26,11 @@ A SaaS dashboard to store large amounts of copy-ready, editable information (cre
 - All 17 UI flows passed (testing agent iteration_3); duplicate-category key warning fixed via defensive de-dupe in `categories` memo
 - README with real setup steps; SQL migration file included and already applied to the live project
 
+## Implemented (2026-06) — Editable categories
+- Categories are now data-driven from the `categories` table (defaults Credentials/Notes/Links seeded per user on first load). All/Favorites/Archive are system (non-editable).
+- Right-click a category (or hover ⋯) → context menu Rename / Delete (`/app/frontend/src/App.js`: Sidebar context menu, `renameCategory`, `deleteCategory`, `RenameCategoryModal`, `ConfirmCategoryDelete`).
+- Rename updates the category row AND all items with that category (items follow). Delete moves items to Archive (never deletes item data). Verified live via browser.
+
 ## Backlog (P1/P2)
 - P2: Undo on favorite/delete
 - P2: Password reset / magic link

@@ -27,6 +27,7 @@ import {
   LogOut,
   Loader2,
   AlertTriangle,
+  MoreVertical,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -34,7 +35,6 @@ import {
 /* ------------------------------------------------------------------ */
 
 const THEME_KEY = "vault-theme";
-const BUILTIN_CATEGORIES = ["Credentials", "Notes", "Links", "Archive"];
 
 const CATEGORY_ICONS = {
   All: Layers,
@@ -184,13 +184,13 @@ const ItemCard = ({ item, onEdit, onDelete, onToggleFav }) => (
 /*  Item modal                                                         */
 /* ------------------------------------------------------------------ */
 
-const emptyDraft = (category) => ({
+const emptyDraft = (category, fallback = "Notes") => ({
   id: null,
   title: "",
   content: "",
   tags: [],
   category:
-    category && !["All", "Favorites"].includes(category) ? category : "Notes",
+    category && !["All", "Favorites"].includes(category) ? category : fallback,
   favorite: false,
 });
 
@@ -462,6 +462,116 @@ const ConfirmDelete = ({ item, onCancel, onConfirm }) => {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Rename category modal                                              */
+/* ------------------------------------------------------------------ */
+
+const RenameCategoryModal = ({ open, current, onClose, onRename }) => {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setName(current || "");
+      setSaving(false);
+    }
+  }, [open, current]);
+
+  if (!open) return null;
+
+  const submit = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    const ok = await onRename(name.trim());
+    if (!ok) setSaving(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        data-testid="rename-category-modal"
+        className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl animate-scale-in"
+      >
+        <h3 className="font-sans text-lg font-semibold">Rename category</h3>
+        <p className="mt-1 font-serif text-[15px] text-muted-foreground">
+          All items in “{current}” will move to the new name automatically.
+        </p>
+        <input
+          data-testid="rename-category-input"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          className="mt-4 w-full rounded-lg border border-input bg-background px-3.5 py-2.5 font-sans text-sm outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
+        />
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            data-testid="rename-category-cancel-btn"
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 font-sans text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary"
+          >
+            Cancel
+          </button>
+          <button
+            data-testid="rename-category-save-btn"
+            onClick={submit}
+            disabled={!name.trim() || saving}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground transition-all duration-150 hover:opacity-90 disabled:opacity-40"
+          >
+            {saving && <Loader2 size={15} className="animate-spin" />}
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Delete category confirm                                            */
+/* ------------------------------------------------------------------ */
+
+const ConfirmCategoryDelete = ({ name, onCancel, onConfirm }) => {
+  if (!name) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in"
+      onMouseDown={(e) => e.target === e.currentTarget && onCancel()}
+    >
+      <div
+        data-testid="delete-category-confirm"
+        className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl animate-scale-in"
+      >
+        <h3 className="font-sans text-lg font-semibold">Delete category?</h3>
+        <p className="mt-2 font-serif text-[15px] text-muted-foreground">
+          “{name}” will be removed. Any items inside it will be moved to
+          Archive (not deleted).
+        </p>
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            data-testid="delete-category-cancel-btn"
+            onClick={onCancel}
+            className="rounded-lg px-4 py-2 font-sans text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary"
+          >
+            Cancel
+          </button>
+          <button
+            data-testid="delete-category-confirm-btn"
+            onClick={onConfirm}
+            className="rounded-lg bg-destructive px-4 py-2 font-sans text-sm font-semibold text-destructive-foreground transition-all duration-150 hover:opacity-90"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+/* ------------------------------------------------------------------ */
 /*  Sidebar                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -478,7 +588,13 @@ const Sidebar = ({
   onExport,
   onImport,
   onLogout,
-}) => (
+  onRenameCategory,
+  onDeleteCategory,
+}) => {
+  const [menuFor, setMenuFor] = useState(null);
+  const isEditable = (cat) => !["All", "Favorites", "Archive"].includes(cat);
+
+  return (
   <div className="flex h-full flex-col bg-card">
     <div className="flex items-center justify-between px-5 pb-4 pt-6">
       <div className="flex items-center gap-2.5">
@@ -523,31 +639,101 @@ const Sidebar = ({
       {categories.map((cat) => {
         const Icon = CATEGORY_ICONS[cat] || Folder;
         const isActive = active === cat;
+        const editable = isEditable(cat);
         return (
-          <button
-            key={cat}
-            data-testid={`category-${cat.toLowerCase()}`}
-            onClick={() => onSelect(cat)}
-            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 font-sans text-sm font-medium transition-colors duration-150 ${
-              isActive
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <span className="flex items-center gap-2.5">
-              <Icon size={16} />
-              {cat}
-            </span>
-            <span
-              className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+          <div key={cat} className="group relative">
+            <div
+              data-testid={`category-${cat.toLowerCase()}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(cat)}
+              onKeyDown={(e) => e.key === "Enter" && onSelect(cat)}
+              onContextMenu={(e) => {
+                if (editable) {
+                  e.preventDefault();
+                  setMenuFor((m) => (m === cat ? null : cat));
+                }
+              }}
+              className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 font-sans text-sm font-medium transition-colors duration-150 ${
                 isActive
-                  ? "bg-primary/15 text-primary"
-                  : "bg-secondary text-muted-foreground"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
-              {counts[cat] ?? 0}
-            </span>
-          </button>
+              <span className="flex items-center gap-2.5 truncate">
+                <Icon size={16} className="shrink-0" />
+                <span className="truncate">{cat}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                {editable && (
+                  <button
+                    data-testid={`category-menu-btn-${cat.toLowerCase()}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuFor((m) => (m === cat ? null : cat));
+                    }}
+                    className={`rounded p-0.5 hover:bg-background/70 ${
+                      menuFor === cat
+                        ? "inline-flex"
+                        : "hidden group-hover:inline-flex"
+                    }`}
+                    aria-label="Category options"
+                  >
+                    <MoreVertical size={14} />
+                  </button>
+                )}
+                <span
+                  className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+                    isActive
+                      ? "bg-primary/15 text-primary"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {counts[cat] ?? 0}
+                </span>
+              </span>
+            </div>
+
+            {menuFor === cat && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setMenuFor(null)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setMenuFor(null);
+                  }}
+                />
+                <div
+                  data-testid={`category-menu-${cat.toLowerCase()}`}
+                  className="absolute right-2 top-full z-50 mt-1 w-36 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-xl animate-scale-in"
+                >
+                  <button
+                    data-testid={`rename-category-${cat.toLowerCase()}`}
+                    onClick={() => {
+                      setMenuFor(null);
+                      onRenameCategory(cat);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left font-sans text-sm text-popover-foreground transition-colors duration-150 hover:bg-secondary"
+                  >
+                    <Pencil size={14} />
+                    Rename
+                  </button>
+                  <button
+                    data-testid={`delete-category-${cat.toLowerCase()}`}
+                    onClick={() => {
+                      setMenuFor(null);
+                      onDeleteCategory(cat);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left font-sans text-sm text-destructive transition-colors duration-150 hover:bg-destructive/10"
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         );
       })}
     </nav>
@@ -598,7 +784,8 @@ const Sidebar = ({
       </button>
     </div>
   </div>
-);
+  );
+};
 
 /* ------------------------------------------------------------------ */
 /*  Auth screen                                                        */
@@ -769,6 +956,8 @@ const Dashboard = ({ session, theme, setTheme }) => {
   const [draft, setDraft] = useState(emptyDraft("Notes"));
   const [toDelete, setToDelete] = useState(null);
   const [catModalOpen, setCatModalOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [catDeleteTarget, setCatDeleteTarget] = useState(null);
 
   const importRef = useRef(null);
 
@@ -794,16 +983,37 @@ const Dashboard = ({ session, theme, setTheme }) => {
       toast.error(error.message || "Failed to load categories");
       return;
     }
-    setCustomCats((data || []).map((c) => c.name));
+    setCustomCats((data || []).map((c) => ({ id: c.id, name: c.name })));
   }, []);
+
+  // First load: seed default buckets if the user has none yet.
+  const initCategories = useCallback(async () => {
+    const { data } = await supabase
+      .from("categories")
+      .select("*")
+      .order("created_at", { ascending: true });
+    let rows = data || [];
+    if (rows.length === 0) {
+      const defaults = ["Credentials", "Notes", "Links"].map((name) => ({
+        user_id: userId,
+        name,
+      }));
+      const { data: seeded } = await supabase
+        .from("categories")
+        .insert(defaults)
+        .select();
+      rows = seeded || [];
+    }
+    setCustomCats(rows.map((c) => ({ id: c.id, name: c.name })));
+  }, [userId]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([fetchItems(), fetchCategories()]);
+      await Promise.all([fetchItems(), initCategories()]);
       setLoading(false);
     })();
-  }, [fetchItems, fetchCategories]);
+  }, [fetchItems, initCategories]);
 
   /* ---- realtime ---- */
   useEffect(() => {
@@ -836,20 +1046,20 @@ const Dashboard = ({ session, theme, setTheme }) => {
   }, [userId, fetchItems, fetchCategories]);
 
   /* ---- categories & counts ---- */
+  const catNames = useMemo(() => customCats.map((c) => c.name), [customCats]);
+
   const categories = useMemo(() => {
-    const reserved = new Set(
-      ["All", "Favorites", ...BUILTIN_CATEGORIES].map((c) => c.toLowerCase())
-    );
+    const reserved = new Set(["All", "Favorites", "Archive"].map((c) => c.toLowerCase()));
     const seen = new Set();
     const extras = [];
-    for (const c of customCats) {
+    for (const c of catNames) {
       const key = c.toLowerCase();
       if (reserved.has(key) || seen.has(key)) continue;
       seen.add(key);
       extras.push(c);
     }
-    return ["All", "Favorites", "Credentials", "Notes", "Links", ...extras, "Archive"];
-  }, [customCats]);
+    return ["All", "Favorites", ...extras, "Archive"];
+  }, [catNames]);
 
   const counts = useMemo(() => {
     const c = { total: items.length, All: 0, Favorites: 0 };
@@ -894,7 +1104,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
 
   /* ---- handlers ---- */
   const openNew = () => {
-    setDraft(emptyDraft(active));
+    setDraft(emptyDraft(active, catNames[0] || "Archive"));
     setModalOpen(true);
   };
   const openEdit = (item) => {
@@ -982,19 +1192,98 @@ const Dashboard = ({ session, theme, setTheme }) => {
       toast.error("That category already exists");
       return false;
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("categories")
-      .insert({ user_id: userId, name });
+      .insert({ user_id: userId, name })
+      .select()
+      .single();
     if (error) {
       toast.error(error.message || "Could not create category");
       return false;
     }
-    setCustomCats((prev) => [...prev, name]);
+    setCustomCats((prev) => [...prev, { id: data.id, name: data.name }]);
     setActive(name);
     setCatModalOpen(false);
     setDrawerOpen(false);
     toast.success("Category created");
     return true;
+  };
+
+  const renameCategory = async (newName) => {
+    const oldName = renameTarget;
+    newName = newName.trim();
+    if (!oldName || !newName) return false;
+    if (newName.toLowerCase() === oldName.toLowerCase()) {
+      setRenameTarget(null);
+      return true;
+    }
+    const reserved = categories.map((c) => c.toLowerCase());
+    if (reserved.includes(newName.toLowerCase())) {
+      toast.error("A category with that name already exists");
+      return false;
+    }
+    const row = customCats.find((c) => c.name === oldName);
+    if (!row) return false;
+
+    const { error } = await supabase
+      .from("categories")
+      .update({ name: newName })
+      .eq("id", row.id);
+    if (error) {
+      toast.error(error.message || "Could not rename category");
+      return false;
+    }
+    // Move all items from the old name to the new name.
+    const { error: itErr } = await supabase
+      .from("items")
+      .update({ category: newName })
+      .eq("category", oldName);
+    if (itErr) toast.error(itErr.message || "Items could not be updated");
+
+    setCustomCats((prev) =>
+      prev.map((c) => (c.id === row.id ? { ...c, name: newName } : c))
+    );
+    setItems((prev) =>
+      prev.map((i) =>
+        i.category === oldName ? { ...i, category: newName } : i
+      )
+    );
+    if (active === oldName) setActive(newName);
+    setRenameTarget(null);
+    toast.success("Category renamed");
+    return true;
+  };
+
+  const deleteCategory = async () => {
+    const name = catDeleteTarget;
+    setCatDeleteTarget(null);
+    const row = customCats.find((c) => c.name === name);
+    if (!row) return;
+    // Move its items to Archive (don't delete user data).
+    const { error: itErr } = await supabase
+      .from("items")
+      .update({ category: "Archive" })
+      .eq("category", name);
+    if (itErr) {
+      toast.error(itErr.message || "Could not move items");
+      return;
+    }
+    const { error } = await supabase
+      .from("categories")
+      .delete()
+      .eq("id", row.id);
+    if (error) {
+      toast.error(error.message || "Could not delete category");
+      return;
+    }
+    setItems((prev) =>
+      prev.map((i) =>
+        i.category === name ? { ...i, category: "Archive" } : i
+      )
+    );
+    setCustomCats((prev) => prev.filter((c) => c.id !== row.id));
+    if (active === name) setActive("All");
+    toast.success("Category deleted — items moved to Archive");
   };
 
   const selectCat = (cat) => {
@@ -1072,6 +1361,8 @@ const Dashboard = ({ session, theme, setTheme }) => {
     onExport: exportVault,
     onImport: () => importRef.current?.click(),
     onLogout: logout,
+    onRenameCategory: (cat) => setRenameTarget(cat),
+    onDeleteCategory: (cat) => setCatDeleteTarget(cat),
   };
 
   return (
@@ -1252,6 +1543,17 @@ const Dashboard = ({ session, theme, setTheme }) => {
         open={catModalOpen}
         onClose={() => setCatModalOpen(false)}
         onCreate={createCategory}
+      />
+      <RenameCategoryModal
+        open={!!renameTarget}
+        current={renameTarget}
+        onClose={() => setRenameTarget(null)}
+        onRename={renameCategory}
+      />
+      <ConfirmCategoryDelete
+        name={catDeleteTarget}
+        onCancel={() => setCatDeleteTarget(null)}
+        onConfirm={deleteCategory}
       />
       <ConfirmDelete
         item={toDelete}
