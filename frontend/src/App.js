@@ -212,11 +212,67 @@ const CopyButton = ({ text, onBeforeCopy, testid, label = "Salin", size = "md" }
   );
 };
 
+const CopyImageButton = ({ imageUrl, testid, label = "Salin Gambar" }) => {
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef(null);
+
+  const onCopy = async () => {
+    if (!imageUrl || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) throw new Error("Gagal mengambil gambar");
+      const blob = await res.blob();
+
+      const canWriteImage =
+        typeof ClipboardItem !== "undefined" &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.write === "function";
+
+      if (!canWriteImage) {
+        window.open(imageUrl, "_blank", "noopener,noreferrer");
+        toast.error(
+          "Browser tidak mendukung salin gambar langsung — klik kanan gambar untuk menyimpan"
+        );
+        return;
+      }
+
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      setCopied(true);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      toast.error(err.message || "Gagal menyalin gambar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  return (
+    <button
+      data-testid={testid}
+      onClick={onCopy}
+      disabled={!imageUrl || busy}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${
+        copied
+          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+          : "border border-input text-muted-foreground hover:bg-secondary hover:text-foreground"
+      }`}
+    >
+      {copied ? <Check size={14} /> : busy ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+      {copied ? "Tersalin!" : label}
+    </button>
+  );
+};
+
 /* ------------------------------------------------------------------ */
 /*  Item card (compact / dense)                                        */
 /* ------------------------------------------------------------------ */
 
-const ItemCard = ({ item, isAdmin, onOpen, onEdit, onDelete, onCopy, onToggleFav }) => {
+const ItemCard = ({ item, isAdmin, onOpen, onEdit, onDelete, onCopy, onToggleFav, onOpenImage }) => {
   const accent = accentFor(item.category);
   const vars = extractVars(item.content);
 
@@ -227,8 +283,25 @@ const ItemCard = ({ item, isAdmin, onOpen, onEdit, onDelete, onCopy, onToggleFav
         borderColor: isAdmin ? accent.ring : undefined,
         boxShadow: isAdmin ? `inset 0 0 0 1px ${accent.ring}` : undefined,
       }}
-      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
+      {item.image_url && (
+        <div
+          className="-mx-4 -mt-4 mb-3 cursor-zoom-in overflow-hidden rounded-t-xl"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenImage(item.image_url);
+          }}
+        >
+          <img
+            data-testid={`item-image-${item.id}`}
+            src={item.image_url}
+            alt={item.title}
+            className="aspect-video w-full object-cover"
+          />
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-2">
         <button
           onClick={() => onOpen(item)}
@@ -289,9 +362,7 @@ const ItemCard = ({ item, isAdmin, onOpen, onEdit, onDelete, onCopy, onToggleFav
         />
         <div className="flex items-center gap-0.5">
           {item.image_url && (
-            <span className="rounded-lg p-1.5 text-muted-foreground" title="Ada gambar">
-              <ImageIcon size={15} />
-            </span>
+            <CopyImageButton imageUrl={item.image_url} testid={`copy-image-btn-${item.id}`} />
           )}
           {isAdmin && (
             <>
@@ -725,10 +796,49 @@ const ItemModal = ({ open, draft, categories, userId, onClose, onSave }) => {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Full-screen image lightbox                                         */
+/* ------------------------------------------------------------------ */
+
+const ImageLightbox = ({ imageUrl, onClose }) => {
+  useEffect(() => {
+    if (!imageUrl) return;
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [imageUrl, onClose]);
+
+  if (!imageUrl) return null;
+
+  return (
+    <div
+      data-testid="image-lightbox"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 animate-fade-in"
+      onClick={onClose}
+    >
+      <button
+        data-testid="lightbox-close-btn"
+        onClick={onClose}
+        className="absolute right-4 top-4 rounded-lg bg-white/10 p-2 text-white transition-colors duration-150 hover:bg-white/20"
+        aria-label="Close image"
+      >
+        <X size={20} />
+      </button>
+      <img
+        data-testid="lightbox-image"
+        src={imageUrl}
+        alt="Full size"
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+      />
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /*  Detail modal                                                       */
 /* ------------------------------------------------------------------ */
 
-const DetailModal = ({ item, isAdmin, onClose, onEdit, onDelete, onCopy }) => {
+const DetailModal = ({ item, isAdmin, onClose, onEdit, onDelete, onCopy, onOpenImage }) => {
   if (!item) return null;
   const accent = accentFor(item.category);
 
@@ -758,7 +868,8 @@ const DetailModal = ({ item, isAdmin, onClose, onEdit, onDelete, onCopy }) => {
               data-testid="detail-image"
               src={item.image_url}
               alt={item.title}
-              className="max-h-72 w-full object-cover"
+              onClick={() => onOpenImage(item.image_url)}
+              className="max-h-72 w-full cursor-zoom-in object-cover"
             />
           )}
 
@@ -789,6 +900,7 @@ const DetailModal = ({ item, isAdmin, onClose, onEdit, onDelete, onCopy }) => {
                 onBeforeCopy={() => onCopy(item)}
                 label="Salin Jawaban"
               />
+              <CopyImageButton imageUrl={item.image_url} testid="detail-copy-image-btn" label="Salin Gambar" />
               <span className="text-[11px] text-muted-foreground">
                 {relativeTime(item.updated_at)}
               </span>
@@ -1448,6 +1560,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState(emptyDraft("All"));
   const [detailItem, setDetailItem] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
   const [copyTarget, setCopyTarget] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [catModalOpen, setCatModalOpen] = useState(false);
@@ -1613,6 +1726,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
     setModalOpen(true);
   };
   const openDetail = (item) => setDetailItem(item);
+  const openImage = (url) => setLightboxUrl(url);
 
   const incrementUsage = useCallback(async (id) => {
     try {
@@ -1980,6 +2094,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
                   item={item}
                   isAdmin={isAdmin}
                   onOpen={openDetail}
+                  onOpenImage={openImage}
                   onEdit={openEdit}
                   onDelete={setToDelete}
                   onCopy={requestCopy}
@@ -2021,7 +2136,9 @@ const Dashboard = ({ session, theme, setTheme }) => {
           setToDelete(item);
         }}
         onCopy={requestCopy}
+        onOpenImage={openImage}
       />
+      <ImageLightbox imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />
       <VariableFillModal
         target={copyTarget}
         onClose={() => setCopyTarget(null)}
