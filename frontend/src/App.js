@@ -2222,11 +2222,20 @@ const Dashboard = ({ session, theme, setTheme }) => {
         toast.error(error.message || "Gagal menghapus topik");
         return;
       }
-      setCustomCats((prev) => prev.filter((c) => c.id !== row.id));
+    } else {
+      // Category may exist only by name in the table (orphan) — delete by name.
+      const { error } = await supabase.from("categories").delete().eq("name", name);
+      if (error) {
+        toast.error(error.message || "Gagal menghapus topik");
+        return;
+      }
     }
+    setCustomCats((prev) => prev.filter((c) => c.name !== name));
     setItems((prev) => prev.map((i) => (i.category === name ? { ...i, category: "Archive" } : i)));
     if (active === name) setActive("All");
     toast.success("Topik dihapus — jawaban dipindah ke Archive");
+    // Refetch to guarantee the sidebar stays in sync (defensive).
+    fetchCategories();
   };
 
   const selectCat = (cat) => {
