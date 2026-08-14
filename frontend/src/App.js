@@ -938,7 +938,7 @@ const DetailModal = ({ item, isAdmin, onClose, onEdit, onDelete, onCopy, onOpenI
           <div className="space-y-4 px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 data-testid="detail-title" className="font-sans text-xl font-bold leading-snug">
+                <h3 data-testid="detail-title" className="font-display text-xl font-semibold leading-snug tracking-wide">
                   {item.title}
                 </h3>
                 {item.is_verified && (
@@ -1371,7 +1371,7 @@ const Sidebar = ({
             <KeyRound size={19} />
           </div>
           <div>
-            <p className="font-sans text-[15px] font-bold leading-tight">{APP_TITLE}</p>
+            <p className="font-display text-[16px] font-semibold leading-tight tracking-wide">{APP_TITLE}</p>
             <p className="font-sans text-[11px] text-muted-foreground">
               {counts.total} jawaban
             </p>
@@ -2375,7 +2375,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2.5 sm:px-6">
           <div className="flex items-center gap-2">
-            <h1 className="font-sans text-lg font-bold sm:text-xl">{active}</h1>
+            <h1 className="font-display text-xl font-semibold tracking-wide sm:text-2xl">{active}</h1>
             {isAdmin && (
               <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                 <Pencil size={12} />
@@ -2548,7 +2548,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = loading
-  const [theme, setTheme] = useState(() => load(THEME_KEY, "light"));
+  const [theme, setTheme] = useState(() => load(THEME_KEY, "dark"));
 
   useEffect(() => {
     localStorage.setItem(THEME_KEY, JSON.stringify(theme));

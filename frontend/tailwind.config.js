@@ -8,7 +8,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Avenir', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        sans: ['Manrope', 'Inter', 'Avenir', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        display: ['Cinzel', 'Georgia', 'serif'],
         serif: ['"EB Garamond"', 'Garamond', '"Times New Roman"', 'serif']
       },
       borderRadius: {
