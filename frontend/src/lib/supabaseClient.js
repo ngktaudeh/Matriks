@@ -21,12 +21,11 @@ export const supabase = hasSupabaseConfig
   : null;
 
 // Whitelist admin emails (comma-separated in env, falls back to default).
+// NOTE: actual admin/owner determination now lives in the `admins` table (RLS).
+// This value is only used as a fallback label for the owner email.
 export const ADMIN_EMAILS = (
   process.env.REACT_APP_ADMIN_EMAILS || "danielsmb385@gmail.com"
 )
   .split(",")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
-
-export const isAdminEmail = (email) =>
-  ADMIN_EMAILS.includes((email || "").toLowerCase());

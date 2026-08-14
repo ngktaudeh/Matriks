@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { supabase, hasSupabaseConfig, isAdminEmail } from "@/lib/supabaseClient";
+import { supabase, hasSupabaseConfig } from "@/lib/supabaseClient";
 import {
   Search,
   Plus,
@@ -1150,7 +1150,7 @@ const ConfirmDelete = ({ item, onCancel, onConfirm }) => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Login modal                                                        */
+/*  Login / Register modal                                             */
 /* ------------------------------------------------------------------ */
 
 const LoginModal = ({ open, onClose, onSuccess }) => {
@@ -1160,25 +1160,10 @@ const LoginModal = ({ open, onClose, onSuccess }) => {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) { setBusy(false); setMode("login"); }
+    if (open) { setBusy(false); setMode("login"); setPassword(""); }
   }, [open]);
 
   if (!open) return null;
-
-  const googleLogin = async () => {
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: window.location.origin },
-      });
-      if (error) throw error;
-      // OAuth redirects the page; no further action here.
-    } catch (err) {
-      toast.error(err.message || "Login Google gagal");
-      setBusy(false);
-    }
-  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -1194,6 +1179,7 @@ const LoginModal = ({ open, onClose, onSuccess }) => {
         toast.success("Login berhasil");
         onSuccess();
       } else {
+        // Daftar sebagai admin (masuk antrean persetujuan owner)
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -1202,7 +1188,19 @@ const LoginModal = ({ open, onClose, onSuccess }) => {
         if (!data.session) {
           toast.success("Cek email untuk konfirmasi akun");
         } else {
-          toast.success("Akun dibuat");
+          // Auto-register as pending admin for owner approval
+          const { error: regErr } = await supabase
+            .from("admins")
+            .insert({
+              user_id: data.user.id,
+              email: data.user.email,
+              role: "admin",
+              status: "pending",
+            });
+          if (regErr) {
+            console.warn("register pending admin:", regErr.message);
+          }
+          toast.success("Akun dibuat — menunggu persetujuan owner");
           onSuccess();
         }
       }
@@ -1223,7 +1221,9 @@ const LoginModal = ({ open, onClose, onSuccess }) => {
         className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl animate-scale-in"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-sans text-lg font-semibold">Login Admin</h2>
+          <h2 className="font-sans text-lg font-semibold">
+            {mode === "login" ? "Login" : "Daftar Admin"}
+          </h2>
           <button
             data-testid="login-close-btn"
             onClick={onClose}
@@ -1231,27 +1231,6 @@ const LoginModal = ({ open, onClose, onSuccess }) => {
           >
             <X size={18} />
           </button>
-        </div>
-
-        <button
-          data-testid="google-login-btn"
-          onClick={googleLogin}
-          disabled={busy}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-input px-4 py-2.5 font-sans text-sm font-semibold transition-colors duration-150 hover:bg-secondary disabled:opacity-40"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l3.66-2.84z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Masuk dengan Google
-        </button>
-
-        <div className="my-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="font-sans text-xs text-muted-foreground">atau</span>
-          <div className="h-px flex-1 bg-border" />
         </div>
 
         <form onSubmit={submit}>
@@ -1269,7 +1248,7 @@ const LoginModal = ({ open, onClose, onSuccess }) => {
           <input
             data-testid="login-password-input"
             type="password"
-            autoComplete="current-password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
@@ -1285,6 +1264,16 @@ const LoginModal = ({ open, onClose, onSuccess }) => {
             {mode === "login" ? "Masuk" : "Daftar"}
           </button>
         </form>
+
+        <button
+          data-testid="login-mode-toggle"
+          onClick={() => setMode(mode === "login" ? "signup" : "login")}
+          className="mt-3 w-full text-center font-sans text-xs font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground"
+        >
+          {mode === "login"
+            ? "Belum punya akun? Daftar sebagai admin"
+            : "Sudah punya akun? Masuk"}
+        </button>
       </div>
     </div>
   );
@@ -1515,6 +1504,218 @@ const SidebarRow = ({
 };
 
 /* ------------------------------------------------------------------ */
+/*  Profile modal (own account + owner admin management)               */
+/* ------------------------------------------------------------------ */
+
+const ProfileModal = ({
+  open,
+  onClose,
+  session,
+  isAdmin,
+  isOwner,
+  myRole,
+  myStatus,
+  admins,
+  pendingCount,
+  onChangePassword,
+  onApproveAdmin,
+  onRejectAdmin,
+  onRemoveAdmin,
+}) => {
+  const [tab, setTab] = useState("profile");
+  const [pw1, setPw1] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) { setTab("profile"); setPw1(""); setPw2(""); setBusy(false); }
+  }, [open]);
+
+  if (!open) return null;
+
+  const submitPw = async (e) => {
+    e.preventDefault();
+    if (pw1.length < 6) { toast.error("Password minimal 6 karakter"); return; }
+    if (pw1 !== pw2) { toast.error("Konfirmasi password tidak cocok"); return; }
+    setBusy(true);
+    const ok = await onChangePassword(pw1);
+    setBusy(false);
+    if (ok) { setPw1(""); setPw2(""); }
+  };
+
+  const roleLabel = (r, s) => {
+    if (r === "owner") return "Owner";
+    if (s === "pending") return "Menunggu persetujuan";
+    if (s === "rejected") return "Ditolak";
+    return "Admin";
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm animate-fade-in sm:items-center sm:p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        data-testid="profile-modal"
+        className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl animate-scale-in sm:rounded-2xl"
+      >
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="font-sans text-lg font-semibold">Profil</h2>
+          <button
+            data-testid="profile-close-btn"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 border-b border-border px-6 py-2">
+          <button
+            data-testid="profile-tab-profile"
+            onClick={() => setTab("profile")}
+            className={`rounded-lg px-3 py-1.5 font-sans text-sm font-semibold transition-colors duration-150 ${
+              tab === "profile" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Akun saya
+          </button>
+          {isOwner && (
+            <button
+              data-testid="profile-tab-admins"
+              onClick={() => setTab("admins")}
+              className={`relative rounded-lg px-3 py-1.5 font-sans text-sm font-semibold transition-colors duration-150 ${
+                tab === "admins" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Kelola Admin
+              {pendingCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+
+        <div className="vault-scroll flex-1 overflow-y-auto px-6 py-5">
+          {tab === "profile" && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border bg-secondary/40 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+                    {(session?.user?.email || "A")[0].toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-sans text-sm font-semibold">
+                      {session?.user?.email}
+                    </p>
+                    <p className="font-sans text-xs text-muted-foreground">
+                      {roleLabel(myRole, myStatus)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {!isAdmin && myStatus === "pending" && (
+                <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 font-sans text-sm text-amber-600 dark:text-amber-400">
+                  Akun Anda menunggu persetujuan owner. Setelah disetujui, Anda akan mendapat akses edit.
+                </div>
+              )}
+
+              <div>
+                <h3 className="mb-2 font-sans text-sm font-semibold">Ganti password</h3>
+                <form onSubmit={submitPw} className="space-y-3">
+                  <input
+                    data-testid="profile-new-password"
+                    type="password"
+                    value={pw1}
+                    onChange={(e) => setPw1(e.target.value)}
+                    placeholder="Password baru (min 6 karakter)"
+                    className="w-full rounded-lg border border-input bg-background px-3.5 py-2.5 font-sans text-sm outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
+                  />
+                  <input
+                    data-testid="profile-confirm-password"
+                    type="password"
+                    value={pw2}
+                    onChange={(e) => setPw2(e.target.value)}
+                    placeholder="Ulangi password baru"
+                    className="w-full rounded-lg border border-input bg-background px-3.5 py-2.5 font-sans text-sm outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
+                  />
+                  <button
+                    data-testid="profile-change-password-btn"
+                    type="submit"
+                    disabled={busy || !pw1 || !pw2}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:opacity-90 disabled:opacity-40"
+                  >
+                    {busy && <Loader2 size={15} className="animate-spin" />}
+                    Simpan password
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {tab === "admins" && isOwner && (
+            <div className="space-y-3">
+              <p className="font-sans text-sm text-muted-foreground">
+                Berikut daftar admin. Terima permintaan pendaftaran, atau hapus akses admin lain.
+              </p>
+              {admins.length === 0 ? (
+                <p className="font-serif text-[14px] text-muted-foreground">Belum ada admin lain.</p>
+              ) : (
+                admins.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-sans text-sm font-medium">{a.email}</p>
+                      <p className="font-sans text-xs text-muted-foreground">
+                        {roleLabel(a.role, a.status)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {a.status === "pending" && (
+                        <>
+                          <button
+                            data-testid={`approve-admin-${a.email}`}
+                            onClick={() => onApproveAdmin(a)}
+                            className="rounded-lg bg-emerald-500/15 px-2.5 py-1.5 font-sans text-xs font-semibold text-emerald-600 transition-colors duration-150 hover:bg-emerald-500/25 dark:text-emerald-400"
+                          >
+                            Terima
+                          </button>
+                          <button
+                            data-testid={`reject-admin-${a.email}`}
+                            onClick={() => onRejectAdmin(a)}
+                            className="rounded-lg bg-destructive/10 px-2.5 py-1.5 font-sans text-xs font-semibold text-destructive transition-colors duration-150 hover:bg-destructive/20"
+                          >
+                            Tolak
+                          </button>
+                        </>
+                      )}
+                      {a.role !== "owner" && a.status === "approved" && (
+                        <button
+                          data-testid={`remove-admin-${a.email}`}
+                          onClick={() => onRemoveAdmin(a)}
+                          className="rounded-lg bg-destructive/10 px-2.5 py-1.5 font-sans text-xs font-semibold text-destructive transition-colors duration-150 hover:bg-destructive/20"
+                        >
+                          Hapus akses
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /*  Config error screen                                                */
 /* ------------------------------------------------------------------ */
 
@@ -1545,12 +1746,14 @@ const ConfigError = () => (
 /* ------------------------------------------------------------------ */
 
 const Dashboard = ({ session, theme, setTheme }) => {
-  const isAdmin = Boolean(session && isAdminEmail(session.user?.email));
   const userId = session?.user?.id || null;
+  const userEmail = session?.user?.email || "";
 
   const [items, setItems] = useState([]);
   const [customCats, setCustomCats] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [admins, setAdmins] = useState([]);
 
   const [active, setActive] = useState("All");
   const [search, setSearch] = useState("");
@@ -1567,8 +1770,50 @@ const Dashboard = ({ session, theme, setTheme }) => {
   const [renameTarget, setRenameTarget] = useState(null);
   const [catDeleteTarget, setCatDeleteTarget] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const searchRef = useRef(null);
+
+  // my admin record (role/status) derived from admins list
+  const myRecord = useMemo(
+    () => admins.find((a) => (a.email || "").toLowerCase() === userEmail.toLowerCase()) || null,
+    [admins, userEmail]
+  );
+  const isOwner = myRecord?.role === "owner";
+  const isApproved = myRecord?.status === "approved";
+  const isAdmin = isOwner || isApproved;
+  const pendingCount = useMemo(() => admins.filter((a) => a.status === "pending").length, [admins]);
+
+  /* ---- fetch admins ---- */
+  const fetchAdmins = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("admins")
+      .select("id,email,role,status,created_at")
+      .order("created_at", { ascending: true });
+    if (error) {
+      // non-owner sees only approved/self; swallowing is fine but surface softly
+      console.warn("fetch admins:", error.message);
+      setAdmins([]);
+      return;
+    }
+    setAdmins(data || []);
+  }, []);
+
+  useEffect(() => {
+    if (session) fetchAdmins();
+  }, [session, fetchAdmins]);
+
+  /* ---- realtime on admins (owner notification on new signup) ---- */
+  useEffect(() => {
+    if (!isOwner) return;
+    const channel = supabase
+      .channel("admins-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "admins" }, () => {
+        fetchAdmins();
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [isOwner, fetchAdmins]);
 
   /* ---- data fetching (shared pool, no user filter) ---- */
   const fetchItems = useCallback(async () => {
@@ -1930,6 +2175,45 @@ const Dashboard = ({ session, theme, setTheme }) => {
     toast.success("Logout berhasil");
   };
 
+  /* ---- profile / admin management ---- */
+  const changePassword = async (newPassword) => {
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Password berhasil diganti");
+      return true;
+    } catch (err) {
+      toast.error(err.message || "Gagal mengganti password");
+      return false;
+    }
+  };
+
+  const approveAdmin = async (a) => {
+    const { error } = await supabase.from("admins").update({ status: "approved" }).eq("id", a.id);
+    if (error) { toast.error(error.message || "Gagal menyetujui"); return; }
+    toast.success(`${a.email} disetujui sebagai admin`);
+    fetchAdmins();
+  };
+
+  const rejectAdmin = async (a) => {
+    const { error } = await supabase.from("admins").update({ status: "rejected" }).eq("id", a.id);
+    if (error) { toast.error(error.message || "Gagal menolak"); return; }
+    toast.success(`${a.email} ditolak`);
+    fetchAdmins();
+  };
+
+  const removeAdmin = async (a) => {
+    const { error } = await supabase.from("admins").delete().eq("id", a.id);
+    if (error) { toast.error(error.message || "Gagal menghapus akses"); return; }
+    toast.success(`Akses ${a.email} dihapus`);
+    fetchAdmins();
+  };
+
+  const handleLoginSuccess = async () => {
+    setLoginOpen(false);
+    await fetchAdmins();
+  };
+
   const sidebarProps = {
     categories,
     active,
@@ -2003,18 +2287,23 @@ const Dashboard = ({ session, theme, setTheme }) => {
             {/* Login / avatar — small circular icon */}
             <button
               data-testid="login-toggle-btn"
-              onClick={() => (isAdmin ? logout() : setLoginOpen(true))}
-              title={isAdmin ? `${session.user.email} (admin)` : "Login admin"}
-              className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition-colors duration-150 ${
+              onClick={() => (isAdmin ? setProfileOpen(true) : setLoginOpen(true))}
+              title={isAdmin ? `${userEmail} (${isOwner ? "Owner" : "Admin"})` : "Login / Daftar"}
+              className={`relative flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition-colors duration-150 ${
                 isAdmin
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-input text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
               {isAdmin ? (
-                (session.user.email || "A")[0].toUpperCase()
+                (userEmail || "A")[0].toUpperCase()
               ) : (
                 <Lock size={16} />
+              )}
+              {isOwner && pendingCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                  {pendingCount}
+                </span>
               )}
             </button>
           </div>
@@ -2168,7 +2457,22 @@ const Dashboard = ({ session, theme, setTheme }) => {
       <LoginModal
         open={loginOpen}
         onClose={() => setLoginOpen(false)}
-        onSuccess={() => setLoginOpen(false)}
+        onSuccess={handleLoginSuccess}
+      />
+      <ProfileModal
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        session={session}
+        isAdmin={isAdmin}
+        isOwner={isOwner}
+        myRole={myRecord?.role}
+        myStatus={myRecord?.status}
+        admins={admins}
+        pendingCount={pendingCount}
+        onChangePassword={changePassword}
+        onApproveAdmin={approveAdmin}
+        onRejectAdmin={rejectAdmin}
+        onRemoveAdmin={removeAdmin}
       />
     </div>
   );
