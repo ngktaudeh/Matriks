@@ -169,17 +169,22 @@ const CopyButton = ({ text, onBeforeCopy, testid, label = "Salin", size = "md" }
   const [busy, setBusy] = useState(false);
   const timer = useRef(null);
 
-  const onCopy = async () => {
+  const onCopy = () => {
     if (busy) return;
     setBusy(true);
     try {
       let finalText = text;
       if (onBeforeCopy) {
-        const r = await onBeforeCopy();
-        if (r === null || r === undefined) return;
+        const r = onBeforeCopy();
+        if (r === null || r === undefined) {
+          setBusy(false);
+          return;
+        }
         finalText = r;
       }
-      await writeClipboard(finalText);
+      // Clipboard write is the FIRST synchronous side-effect inside the
+      // click handler — no await before it, so browsers accept it.
+      writeClipboard(finalText);
       setCopied(true);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setCopied(false), 1500);
@@ -283,7 +288,7 @@ const ItemCard = ({ item, isAdmin, onOpen, onEdit, onDelete, onCopy, onToggleFav
         borderColor: isAdmin ? accent.ring : undefined,
         boxShadow: isAdmin ? `inset 0 0 0 1px ${accent.ring}` : undefined,
       }}
-      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+      className="card-surface card-surface-hover group flex flex-col overflow-hidden rounded-xl transition-all duration-200 hover:-translate-y-0.5"
     >
       {item.image_url && (
         <div
@@ -297,7 +302,9 @@ const ItemCard = ({ item, isAdmin, onOpen, onEdit, onDelete, onCopy, onToggleFav
             data-testid={`item-image-${item.id}`}
             src={item.image_url}
             alt={item.title}
-            className="aspect-video w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            className="aspect-video w-full object-cover bg-secondary"
           />
         </div>
       )}
@@ -484,6 +491,56 @@ const emptyDraft = (category, fallback = "FAQ Umum") => ({
 });
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_WIDTH = 1600;
+const IMAGE_QUALITY = 0.8;
+
+// Resize + re-encode image client-side (canvas) before upload.
+// Falls back to the original file if anything goes wrong.
+const compressImage = (file) =>
+  new Promise((resolve) => {
+    if (!file || !file.type.startsWith("image/")) return resolve(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const scale = Math.min(1, MAX_IMAGE_WIDTH / Math.max(w, h));
+        if (scale >= 1 && file.size <= MAX_IMAGE_BYTES) {
+          URL.revokeObjectURL(url);
+          return resolve(file);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Use JPEG for photos (smaller); keep PNG only for small/transparent images.
+        const isSmallPng = file.type === "image/png" && file.size < 500 * 1024;
+        const mime = isSmallPng ? "image/png" : "image/jpeg";
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(url);
+            if (!blob) return resolve(file);
+            const ext = mime === "image/png" ? "png" : "jpg";
+            const name = file.name.replace(/\.[^.]+$/, "") + "." + ext;
+            const out = new File([blob], name, { type: mime });
+            resolve(out);
+          },
+          mime,
+          IMAGE_QUALITY
+        );
+      } catch {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
 
 const ItemModal = ({ open, draft, categories, userId, onClose, onSave }) => {
   const [form, setForm] = useState(draft);
@@ -521,9 +578,10 @@ const ItemModal = ({ open, draft, categories, userId, onClose, onSave }) => {
     return true;
   };
 
-  const onPickFile = (file) => {
+  const onPickFile = async (file) => {
     if (!validateFile(file)) return;
-    setForm((f) => ({ ...f, image_file: file, image_url: URL.createObjectURL(file) }));
+    const compressed = await compressImage(file);
+    setForm((f) => ({ ...f, image_file: compressed, image_url: URL.createObjectURL(compressed) }));
   };
 
   const onRemoveImage = () => {
@@ -644,6 +702,7 @@ const ItemModal = ({ open, draft, categories, userId, onClose, onSave }) => {
                   data-testid="modal-image-preview"
                   src={form.image_url}
                   alt="Preview"
+                  decoding="async"
                   className="aspect-video w-full object-cover"
                 />
                 <div className="flex items-center justify-between gap-2 border-t border-border bg-secondary/40 px-3 py-2">
@@ -827,6 +886,7 @@ const ImageLightbox = ({ imageUrl, onClose }) => {
         data-testid="lightbox-image"
         src={imageUrl}
         alt="Full size"
+        decoding="async"
         onClick={(e) => e.stopPropagation()}
         className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
       />
@@ -868,8 +928,10 @@ const DetailModal = ({ item, isAdmin, onClose, onEdit, onDelete, onCopy, onOpenI
               data-testid="detail-image"
               src={item.image_url}
               alt={item.title}
+              loading="lazy"
+              decoding="async"
               onClick={() => onOpenImage(item.image_url)}
-              className="max-h-72 w-full cursor-zoom-in object-cover"
+              className="aspect-video max-h-72 w-full cursor-zoom-in bg-secondary object-cover"
             />
           )}
 
@@ -1973,26 +2035,28 @@ const Dashboard = ({ session, theme, setTheme }) => {
   const openDetail = (item) => setDetailItem(item);
   const openImage = (url) => setLightboxUrl(url);
 
-  const incrementUsage = useCallback(async (id) => {
+  const incrementUsage = useCallback((id) => {
+    // Fire-and-forget: never block the copy action on network.
     try {
-      await supabase.rpc("increment_usage_count", { target_id: id });
-      setItems((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, usage_count: (i.usage_count || 0) + 1 } : i))
-      );
+      supabase.rpc("increment_usage_count", { target_id: id }).then(() => {
+        setItems((prev) =>
+          prev.map((i) => (i.id === id ? { ...i, usage_count: (i.usage_count || 0) + 1 } : i))
+        );
+      });
     } catch {
       /* non-fatal — counter only */
     }
   }, []);
 
-  /* Copy: resolve variables, then increment usage + return text */
+  /* Copy: resolve variables (synchronously returns text), fire counter in background */
   const requestCopy = useCallback(
-    async (item) => {
+    (item) => {
       const vars = extractVars(item.content);
       if (vars.length > 0) {
         setCopyTarget({ item, vars });
         return null; // modal handles the copy
       }
-      await incrementUsage(item.id);
+      incrementUsage(item.id);
       return item.content;
     },
     [incrementUsage]
@@ -2003,7 +2067,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
       if (!copyTarget) return;
       const text = fillVars(copyTarget.item.content, values);
       await writeClipboard(text);
-      await incrementUsage(copyTarget.item.id);
+      incrementUsage(copyTarget.item.id);
       setCopyTarget(null);
       toast.success("Tersalin ke clipboard");
     },

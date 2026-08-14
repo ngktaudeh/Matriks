@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Avenir', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        sans: ['Inter', 'Avenir', '"Helvetica Neue"', 'Arial', 'sans-serif'],
         serif: ['"EB Garamond"', 'Garamond', '"Times New Roman"', 'serif']
       },
       borderRadius: {
