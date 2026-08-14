@@ -315,7 +315,7 @@ const ItemCard = ({ item, isAdmin, onOpen, onEdit, onDelete, onCopy, onToggleFav
           className="min-w-0 flex-1 text-left"
           data-testid={`item-title-${item.id}`}
         >
-          <h3 className="font-sans text-[15px] font-semibold leading-snug text-card-foreground line-clamp-2 hover:text-primary">
+          <h3 className="font-sans text-[17px] font-bold leading-snug tracking-tight text-card-foreground line-clamp-2 hover:text-primary">
             {item.title}
           </h3>
         </button>
@@ -938,7 +938,7 @@ const DetailModal = ({ item, isAdmin, onClose, onEdit, onDelete, onCopy, onOpenI
           <div className="space-y-4 px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 data-testid="detail-title" className="font-display text-xl font-semibold leading-snug tracking-wide">
+                <h3 data-testid="detail-title" className="font-display text-2xl font-bold leading-snug tracking-wide">
                   {item.title}
                 </h3>
                 {item.is_verified && (
