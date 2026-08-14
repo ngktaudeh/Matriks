@@ -1,7 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.REACT_APP_SUPABASE_URL;
-const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+// Supabase connection — these are PUBLIC (publishable) values, safe to ship
+// in the client bundle. The service_role/secret key must NEVER appear here.
+const DEFAULT_URL = "https://nyzcjwkpekbsredycvjv.supabase.co";
+const DEFAULT_ANON_KEY = "sb_publishable_vq9v6HAyx696M9xJ97QtDg_r7yH3Wqc";
+
+const url = process.env.REACT_APP_SUPABASE_URL || DEFAULT_URL;
+const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || DEFAULT_ANON_KEY;
 
 export const hasSupabaseConfig = Boolean(url && anonKey);
 
