@@ -55,12 +55,36 @@ export const useCategories = (userId) => {
     return { data, error };
   }, []);
 
-  const deleteCategory = useCallback(async (id) => {
+  /**
+   * Hapus kategori.
+   * Jika categoryName + softDeleteItemsByCategory diberikan, semua item
+   * di kategori itu dipindah ke Tempat Sampah dulu, baru nama kategori dihapus.
+   */
+  const deleteCategory = useCallback(async (id, options = {}) => {
     if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
+
+    const { categoryName, softDeleteItemsByCategory } = options;
+
+    // 1) Soft-delete semua item di kategori ini → Tempat Sampah
+    if (categoryName && typeof softDeleteItemsByCategory === "function") {
+      const { error: itemsErr, count } = await softDeleteItemsByCategory(categoryName);
+      if (itemsErr) return { error: itemsErr, trashedCount: count || 0 };
+    } else if (categoryName && userId) {
+      // Fallback langsung di hook jika callback tidak diberikan
+      const { error: itemsErr } = await supabase
+        .from("items")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .eq("category", categoryName)
+        .is("deleted_at", null);
+      if (itemsErr) return { error: itemsErr };
+    }
+
+    // 2) Hapus baris kategori (nama menu). Item sudah di tong sampah.
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (!error) setCategories((prev) => prev.filter((c) => c.id !== id));
     return { error };
-  }, []);
+  }, [userId]);
 
   return { categories, loading, error, fetchCategories, addCategory, updateCategory, deleteCategory };
 };

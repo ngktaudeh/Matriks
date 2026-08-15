@@ -159,11 +159,32 @@ export const useItems = (userId, view = "active") => {
     return { error };
   }, []);
 
+
+  // Soft-delete semua item aktif di satu kategori → Tempat Sampah
+  const softDeleteItemsByCategory = useCallback(async (categoryName) => {
+    if (!supabase || !userId || !categoryName) {
+      return { error: { message: "Data tidak lengkap" }, count: 0 };
+    }
+    const { data, error } = await supabase
+      .from("items")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("category", categoryName)
+      .is("deleted_at", null)
+      .select("id");
+    if (!error) {
+      const ids = new Set((data || []).map((r) => r.id));
+      setItems((prev) => prev.filter((i) => !ids.has(i.id)));
+    }
+    return { error, count: data?.length || 0 };
+  }, [userId]);
+
   return {
     items,
     loading,
     error,
     fetchItems,
+
     addItem,
     updateItem,
     toggleFavorite,
@@ -172,5 +193,6 @@ export const useItems = (userId, view = "active") => {
     permanentDelete,
     bulkDelete,
     bulkMoveToTrash,
+    softDeleteItemsByCategory,
   };
 };

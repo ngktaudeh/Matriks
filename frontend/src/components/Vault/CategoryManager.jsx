@@ -9,12 +9,16 @@ export const CategoryManager = ({ categories, onAdd, onUpdate, onDelete, isOpen,
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
     const { error } = await onAdd(newName);
     if (error) setError(error.message || "Gagal menambah kategori");
-    else setNewName("");
+    else {
+      setNewName("");
+      setError("");
+    }
   };
 
   const handleUpdate = async (id) => {
@@ -23,9 +27,24 @@ export const CategoryManager = ({ categories, onAdd, onUpdate, onDelete, isOpen,
     setEditingId(null);
   };
 
+  const handleDelete = async (cat) => {
+    if (deletingId) return;
+    setDeletingId(cat.id);
+    try {
+      await onDelete(cat.id);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Kelola Kategori" size="md">
       <div className="space-y-4">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Menghapus kategori akan memindahkan semua item di dalamnya ke{" "}
+          <strong>Tempat Sampah</strong> (bisa dipulihkan).
+        </p>
+
         <div className="flex gap-2">
           <Input
             placeholder="Nama kategori baru..."
@@ -75,7 +94,10 @@ export const CategoryManager = ({ categories, onAdd, onUpdate, onDelete, isOpen,
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}
+                      onClick={() => {
+                        setEditingId(cat.id);
+                        setEditName(cat.name);
+                      }}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </Button>
@@ -83,7 +105,9 @@ export const CategoryManager = ({ categories, onAdd, onUpdate, onDelete, isOpen,
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-red-600 hover:bg-red-50 dark:text-red-400"
-                      onClick={() => onDelete(cat.id)}
+                      disabled={deletingId === cat.id}
+                      onClick={() => handleDelete(cat)}
+                      title="Hapus kategori (item → Tempat Sampah)"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>

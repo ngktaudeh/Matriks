@@ -28,7 +28,7 @@ export const VaultPage = () => {
   const { canUseAI } = useAdmin(user);
   const {
     items, loading, fetchItems, addItem, updateItem,
-    toggleFavorite, moveToTrash, bulkMoveToTrash,
+    toggleFavorite, moveToTrash, bulkMoveToTrash, softDeleteItemsByCategory,
   } = useItems(user?.id);
   const { items: trashItems } = useItems(user?.id, "trash");
   const { categories, fetchCategories, addCategory, updateCategory, deleteCategory } = useCategories(user?.id);
@@ -192,6 +192,32 @@ export const VaultPage = () => {
     e.target.value = "";
   };
 
+
+  // Hapus kategori: semua item di kategori → Tempat Sampah, lalu hapus nama kategori
+  const handleDeleteCategory = async (catId) => {
+    const cat = categories.find((c) => c.id === catId);
+    if (!cat) return;
+    const count = items.filter((i) => i.category === cat.name).length;
+    const msg =
+      count > 0
+        ? `Hapus kategori "${cat.name}"? ${count} item di dalamnya akan dipindah ke Tempat Sampah.`
+        : `Hapus kategori "${cat.name}"?`;
+    if (!window.confirm(msg)) return;
+    const { error } = await deleteCategory(catId, {
+      categoryName: cat.name,
+      softDeleteItemsByCategory,
+    });
+    if (error) toast.error(error.message || "Gagal menghapus kategori");
+    else {
+      toast.success(
+        count > 0
+          ? `Kategori dihapus. ${count} item dipindah ke Tempat Sampah.`
+          : "Kategori dihapus."
+      );
+      fetchItems();
+    }
+  };
+
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-slate-950">
       <Header onMenuClick={() => setMobileMenuOpen(true)} user={user} onLogout={signOut} />
@@ -334,7 +360,7 @@ export const VaultPage = () => {
         categories={categories}
         onAdd={addCategory}
         onUpdate={updateCategory}
-        onDelete={deleteCategory}
+        onDelete={handleDeleteCategory}
       />
 
       <ProfileSettings
