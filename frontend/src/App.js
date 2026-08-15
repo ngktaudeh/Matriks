@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { supabase, hasSupabaseConfig } from "@/lib/supabaseClient";
-import { tanyaKimi } from "./kimi";
+import { tanyaKimi, getRandomQuestion, CATEGORIES } from "./kimi";
 import {
   Search,
   Plus,
@@ -1809,18 +1809,27 @@ const ConfigError = () => (
 /* ------------------------------------------------------------------ */
 
 const TombolKimi = () => {
+  const [category, setCategory] = useState("design");
+  const [pertanyaan, setPertanyaan] = useState("");
   const [jawaban, setJawaban] = useState("");
+  const [askedQuestion, setAskedQuestion] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const mintaSaran = async () => {
+  const kirim = async (teks) => {
+    const finalPertanyaan = (teks ?? pertanyaan).trim();
+    if (!finalPertanyaan) return;
     setLoading(true);
     setJawaban("");
-    // Ganti teks di bawah ini dengan pertanyaan desain apa saja
-    const hasil = await tanyaKimi(
-      "Berikan saya palet warna hex code yang modern untuk dashboard SaaS bertema penyimpanan data rahasia!"
-    );
+    setAskedQuestion(finalPertanyaan);
+    const hasil = await tanyaKimi(finalPertanyaan, category);
     setJawaban(hasil);
     setLoading(false);
+  };
+
+  const kejutkanAku = () => {
+    const acak = getRandomQuestion(category);
+    setPertanyaan(acak);
+    kirim(acak);
   };
 
   return (
@@ -1828,22 +1837,64 @@ const TombolKimi = () => {
       data-testid="kimi-panel"
       className="rounded-xl border border-border bg-card p-4 shadow-sm"
     >
-      <h3 className="font-sans text-sm font-semibold">🤖 Asisten Desain Kimi</h3>
-      <button
-        data-testid="kimi-ask-btn"
-        onClick={mintaSaran}
-        disabled={loading}
-        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:opacity-90 disabled:opacity-40"
-      >
-        {loading && <Loader2 size={15} className="animate-spin" />}
-        {loading ? "Kimi sedang mikir..." : "Tanya Saran Desain"}
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-sans text-sm font-semibold">🤖 Asisten Kimi</h3>
+        <select
+          data-testid="kimi-category-select"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="rounded-lg border border-input bg-background px-2.5 py-1.5 font-sans text-xs font-medium outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
+        >
+          {Object.entries(CATEGORIES).map(([key, val]) => (
+            <option key={key} value={key}>
+              {val.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      {jawaban && (
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          data-testid="kimi-question-input"
+          value={pertanyaan}
+          onChange={(e) => setPertanyaan(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && kirim()}
+          placeholder="Ketik pertanyaan, atau klik 'Kejutkan aku'…"
+          className="flex-1 rounded-lg border border-input bg-background px-3.5 py-2.5 font-sans text-sm outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
+        />
+        <div className="flex gap-2">
+          <button
+            data-testid="kimi-ask-btn"
+            onClick={() => kirim()}
+            disabled={loading || !pertanyaan.trim()}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:opacity-90 disabled:opacity-40"
+          >
+            {loading && <Loader2 size={15} className="animate-spin" />}
+            Tanya
+          </button>
+          <button
+            data-testid="kimi-random-btn"
+            onClick={kejutkanAku}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-input px-4 py-2 font-sans text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground disabled:opacity-40"
+          >
+            Kejutkan aku
+          </button>
+        </div>
+      </div>
+
+      {loading && (
+        <p className="mt-3 font-sans text-xs text-muted-foreground">Kimi sedang mikir…</p>
+      )}
+
+      {jawaban && !loading && (
         <div
           data-testid="kimi-answer"
           className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-background p-3 font-sans text-sm"
         >
+          <p className="mb-2 font-sans text-xs font-semibold text-muted-foreground">
+            {askedQuestion}
+          </p>
           <strong>Jawaban Kimi:</strong>
           <br />
           {jawaban}
