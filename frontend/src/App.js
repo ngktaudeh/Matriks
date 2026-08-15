@@ -1811,19 +1811,45 @@ const ConfigError = () => (
 const TombolKimi = () => {
   const [category, setCategory] = useState("design");
   const [pertanyaan, setPertanyaan] = useState("");
-  const [jawaban, setJawaban] = useState("");
-  const [askedQuestion, setAskedQuestion] = useState("");
+  const [messages, setMessages] = useState([]); // [{ role: 'user'|'assistant', content: string }]
   const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Auto scroll ke bawah setiap ada pesan baru
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   const kirim = async (teks) => {
     const finalPertanyaan = (teks ?? pertanyaan).trim();
-    if (!finalPertanyaan) return;
+    if (!finalPertanyaan || loading) return;
+
+    setPertanyaan("");
     setLoading(true);
-    setJawaban("");
-    setAskedQuestion(finalPertanyaan);
-    const hasil = await tanyaKimi(finalPertanyaan, category);
-    setJawaban(hasil);
-    setLoading(false);
+
+    // Tambah pesan user dulu
+    setMessages((prev) => [...prev, { role: "user", content: finalPertanyaan }]);
+
+    try {
+      const hasil = await tanyaKimi(finalPertanyaan, category, {
+        model: "kimi-k3",
+        temperature: 1,
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: hasil || "Tidak ada jawaban." },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `Terjadi kesalahan: ${err.message}` },
+      ]);
+    } finally {
+      setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
   };
 
   const kejutkanAku = () => {
@@ -1832,74 +1858,160 @@ const TombolKimi = () => {
     kirim(acak);
   };
 
+  const hapusChat = () => {
+    if (loading) return;
+    setMessages([]);
+    setPertanyaan("");
+  };
+
   return (
     <div
       data-testid="kimi-panel"
-      className="rounded-xl border border-border bg-card p-4 shadow-sm"
+      className="flex h-[520px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-md"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-sans text-sm font-semibold">🤖 Asisten Kimi</h3>
-        <select
-          data-testid="kimi-category-select"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="rounded-lg border border-input bg-background px-2.5 py-1.5 font-sans text-xs font-medium outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
-        >
-          {Object.entries(CATEGORIES).map(([key, val]) => (
-            <option key={key} value={key}>
-              {val.label}
-            </option>
-          ))}
-        </select>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <span className="text-sm">🤖</span>
+          </div>
+          <div>
+            <h3 className="font-sans text-sm font-semibold leading-tight">Asisten Kimi</h3>
+            <p className="font-sans text-[11px] text-muted-foreground">
+              {CATEGORIES[category]?.label || "AI Assistant"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <select
+            data-testid="kimi-category-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="rounded-lg border border-input bg-background px-2.5 py-1.5 font-sans text-xs font-medium outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
+          >
+            {Object.entries(CATEGORIES).map(([key, val]) => (
+              <option key={key} value={key}>
+                {val.label}
+              </option>
+            ))}
+          </select>
+
+          {messages.length > 0 && (
+            <button
+              onClick={hapusChat}
+              disabled={loading}
+              className="rounded-lg border border-input px-2.5 py-1.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+              title="Mulai chat baru"
+            >
+              Baru
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <input
-          data-testid="kimi-question-input"
-          value={pertanyaan}
-          onChange={(e) => setPertanyaan(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && kirim()}
-          placeholder="Ketik pertanyaan, atau klik 'Kejutkan aku'…"
-          className="flex-1 rounded-lg border border-input bg-background px-3.5 py-2.5 font-sans text-sm outline-none transition-colors duration-150 focus:border-primary focus:ring-2 focus:ring-ring/30"
-        />
-        <div className="flex gap-2">
+      {/* Area pesan */}
+      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        {messages.length === 0 && !loading && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl">
+              ✨
+            </div>
+            <div>
+              <p className="font-sans text-sm font-semibold">Ada yang bisa dibantu?</p>
+              <p className="mt-1 max-w-[260px] font-sans text-xs text-muted-foreground">
+                Tanya seputar desain, kode, strategi SaaS, atau ide visual.
+              </p>
+            </div>
+            <button
+              onClick={kejutkanAku}
+              className="mt-1 rounded-full border border-border bg-background px-4 py-1.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              Kejutkan aku
+            </button>
+          </div>
+        )}
+
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 font-sans text-sm leading-relaxed ${
+                msg.role === "user"
+                  ? "rounded-br-md bg-primary text-primary-foreground"
+                  : "rounded-bl-md border border-border bg-background text-foreground"
+              }`}
+            >
+              <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+            </div>
+          </div>
+        ))}
+
+        {/* Loading bubble */}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-border bg-background px-4 py-3">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" />
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input area */}
+      <div className="border-t border-border p-3">
+        <div className="flex items-end gap-2 rounded-xl border border-input bg-background p-1.5 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/30">
+          <textarea
+            ref={inputRef}
+            data-testid="kimi-question-input"
+            value={pertanyaan}
+            onChange={(e) => setPertanyaan(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                kirim();
+              }
+            }}
+            placeholder="Tulis pesan… (Enter untuk kirim)"
+            rows={1}
+            className="max-h-28 min-h-[40px] flex-1 resize-none bg-transparent px-2.5 py-2 font-sans text-sm outline-none placeholder:text-muted-foreground"
+          />
           <button
             data-testid="kimi-ask-btn"
             onClick={() => kirim()}
             disabled={loading || !pertanyaan.trim()}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:opacity-90 disabled:opacity-40"
+            className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:opacity-90 disabled:opacity-40"
+            title="Kirim"
           >
-            {loading && <Loader2 size={15} className="animate-spin" />}
-            Tanya
-          </button>
-          <button
-            data-testid="kimi-random-btn"
-            onClick={kejutkanAku}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-input px-4 py-2 font-sans text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground disabled:opacity-40"
-          >
-            Kejutkan aku
+            {loading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m22 2-7 20-4-9-9-4Z" />
+                <path d="M22 2 11 13" />
+              </svg>
+            )}
           </button>
         </div>
+        <p className="mt-1.5 text-center font-sans text-[10px] text-muted-foreground">
+          Kimi bisa salah. Periksa kembali hasil penting.
+        </p>
       </div>
-
-      {loading && (
-        <p className="mt-3 font-sans text-xs text-muted-foreground">Kimi sedang mikir…</p>
-      )}
-
-      {jawaban && !loading && (
-        <div
-          data-testid="kimi-answer"
-          className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-background p-3 font-sans text-sm"
-        >
-          <p className="mb-2 font-sans text-xs font-semibold text-muted-foreground">
-            {askedQuestion}
-          </p>
-          <strong>Jawaban Kimi:</strong>
-          <br />
-          {jawaban}
-        </div>
-      )}
     </div>
   );
 };
