@@ -12,7 +12,7 @@ const HISTORY_KEY = "matriks-chat-history";
 // Dibuka via Ctrl+B. Riwayat tersimpan di localStorage (tidak hilang saat F5).
 export const AIPage = ({ vaultContext = "" }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { canUseAI, loading: adminLoading } = useAdmin(user);
   const [messages, setMessages] = useLocalStorage(HISTORY_KEY, []);
   const [input, setInput] = useState("");
@@ -22,9 +22,13 @@ export const AIPage = ({ vaultContext = "" }) => {
   const inputRef = useRef(null);
 
   // Non-admin (tidak punya akses AI) diarahkan kembali ke menu utama.
+  // Tunggu BOTH auth & admin loading selesai agar tidak redirect prematur
+  // saat user masih null (race condition) — ini yang bikin /ai selalu balik ke /.
   useEffect(() => {
-    if (!adminLoading && !canUseAI) navigate("/", { replace: true });
-  }, [adminLoading, canUseAI, navigate]);
+    if (!authLoading && !adminLoading && !canUseAI) {
+      navigate("/", { replace: true });
+    }
+  }, [authLoading, adminLoading, canUseAI, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -125,6 +129,12 @@ export const AIPage = ({ vaultContext = "" }) => {
 
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-slate-950">
+      {(authLoading || adminLoading) ? (
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+      ) : (
+      <>
       {/* Header dengan toggle back-to-menu di kiri atas */}
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/80">
         <div className="flex items-center gap-3">
@@ -222,6 +232,8 @@ export const AIPage = ({ vaultContext = "" }) => {
           </Button>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };
