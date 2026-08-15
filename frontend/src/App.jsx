@@ -1,11 +1,13 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { useAIHotkey } from "./hooks/useAIHotkey";
 import { AuthGuard } from "./components/Auth/AuthGuard";
 import { ToastProvider } from "./components/UI/ToastProvider";
 import { LoginPage } from "./pages/LoginPage";
 import { VaultPage } from "./pages/VaultPage";
 import { TrashPage } from "./pages/TrashPage";
+import { AIPage } from "./pages/AIPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 
 const PrivateRoute = ({ children }) => {
@@ -14,9 +16,16 @@ const PrivateRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" replace />;
 };
 
+// Mendaftarkan shortcut Ctrl+B di dalam router context.
+const GlobalHotkeys = () => {
+  useAIHotkey();
+  return null;
+};
+
 export const App = () => {
   return (
     <BrowserRouter>
+      <GlobalHotkeys />
       <ToastProvider />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -34,6 +43,14 @@ export const App = () => {
           element={
             <PrivateRoute>
               <TrashPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/ai"
+          element={
+            <PrivateRoute>
+              <AIPage />
             </PrivateRoute>
           }
         />

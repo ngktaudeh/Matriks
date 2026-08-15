@@ -1,11 +1,43 @@
-import { useMemo } from "react";
-import { ADMIN_EMAILS } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
+const OWNER_EMAIL = "danielsmb385@gmail.com";
+
+// Sumber kebenaran untuk status admin + akses AI adalah tabel `public.admins`
+// (migration 0004/0005). Owner di-hardcode sebagai fallback agar selalu punya akses.
 export const useAdmin = (user) => {
- const isAdmin = useMemo(() => {
- if (!user?.email) return false;
- return ADMIN_EMAILS.includes(user.email.toLowerCase());
- }, [user?.email]);
+  const email = (user?.email || "").toLowerCase();
+  const [adminRow, setAdminRow] = useState(null);
+  const [loading, setLoading] = useState(true);
 
- return { isAdmin };
+  useEffect(() => {
+    let mounted = true;
+    if (!email || !supabase) {
+      setLoading(false);
+      return;
+    }
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("admins")
+          .select("*")
+          .eq("email", email)
+          .maybeSingle();
+        if (mounted) setAdminRow(data || null);
+      } catch {
+        if (mounted) setAdminRow(null);
+      }
+      if (mounted) setLoading(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [email]);
+
+  const isOwner = email === OWNER_EMAIL;
+  const approved = adminRow?.status === "approved";
+  const isAdmin = isOwner || approved;
+  const canUseAI = isOwner || (approved && adminRow?.ai_access === true);
+
+  return { admin: adminRow, loading, isOwner, isAdmin, canUseAI };
 };

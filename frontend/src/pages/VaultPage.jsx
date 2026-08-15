@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, MessageSquare, Trash2, Download, Upload } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, MessageSquare, Download, Upload } from "lucide-react";
 import { Header } from "../components/Layout/Header";
 import { Sidebar } from "../components/Layout/Sidebar";
 import { MobileDrawer } from "../components/Layout/MobileDrawer";
@@ -10,8 +11,8 @@ import { ItemList } from "../components/Vault/ItemList";
 import { ItemEditor } from "../components/Vault/ItemEditor";
 import { CategoryManager } from "../components/Vault/CategoryManager";
 import { BulkActionsBar } from "../components/Vault/BulkActionsBar";
-import { ChatPanel } from "../components/AI/ChatPanel";
 import { ProfileSettings } from "../components/Auth/ProfileSettings";
+import { ConfirmDialog } from "../components/UI/ConfirmDialog";
 import { Button } from "../components/UI/Button";
 import { useAuth } from "../hooks/useAuth";
 import { useAdmin } from "../hooks/useAdmin";
@@ -20,12 +21,15 @@ import { useCategories } from "../hooks/useCategories";
 import { useDebounce } from "../hooks/useDebounce";
 import { useClipboard } from "../hooks/useClipboard";
 import { useRealtime } from "../hooks/useRealtime";
-import { highlightMatch } from "../utils/formatters";
 
 export const VaultPage = () => {
+  const navigate = useNavigate();
   const { user, signOut, updatePassword } = useAuth();
-  const { isAdmin } = useAdmin(user);
-  const { items, loading, fetchItems, addItem, updateItem, toggleFavorite, moveToTrash, bulkMoveToTrash } = useItems(user?.id);
+  const { canUseAI } = useAdmin(user);
+  const {
+    items, loading, fetchItems, addItem, updateItem,
+    toggleFavorite, permanentDelete, bulkDelete,
+  } = useItems(user?.id);
   const { categories, fetchCategories, addCategory, updateCategory, deleteCategory } = useCategories(user?.id);
 
   const [search, setSearch] = useState("");
@@ -35,10 +39,13 @@ export const VaultPage = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showChat, setShowChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+
+  // State konfirmasi hapus
+  const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'single'|'bulk', id?, ids? }
+  const [deleting, setDeleting] = useState(false);
 
   const debouncedSearch = useDebounce(search, 300);
   const { copy } = useClipboard();
@@ -109,30 +116,41 @@ export const VaultPage = () => {
 
   const handleSaveItem = async (id, data) => {
     if (id) {
-      await updateItem(id, data);
+      const { error } = await updateItem(id, data);
+      if (error) { toast.error(error.message || "Gagal memperbarui item"); return; }
       toast.success("Item diperbarui");
     } else {
-      await addItem(data);
+      const { error } = await addItem(data);
+      if (error) { toast.error(error.message || "Gagal membuat item"); return; }
       toast.success("Item dibuat");
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Yakin ingin menghapus item ini? Item akan dipindahkan ke tempat sampah.")) return;
-    await moveToTrash(id);
-    toast.success("Item dipindahkan ke tempat sampah");
+  // Hapus permanen (TIDAK masuk Tempat Sampah) — dengan konfirmasi.
+  const requestDelete = (id) => setConfirmDelete({ type: "single", id });
+  const requestBulkDelete = () => setConfirmDelete({ type: "bulk", ids: selectedIds });
+
+  const doDelete = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    if (confirmDelete.type === "single") {
+      const { error } = await permanentDelete(confirmDelete.id);
+      if (error) toast.error(error.message || "Gagal menghapus");
+      else toast.success("Item dihapus permanen");
+    } else {
+      const ids = confirmDelete.ids || [];
+      const { error } = await bulkDelete(ids);
+      if (error) toast.error(error.message || "Gagal menghapus");
+      else toast.success(`${ids.length} item dihapus permanen`);
+      setSelectedIds([]);
+      setSelectionMode(false);
+    }
+    setDeleting(false);
+    setConfirmDelete(null);
   };
 
   const handleSelect = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
-  };
-
-  const handleBulkDelete = async () => {
-    if (!window.confirm(`Yakin ingin menghapus ${selectedIds.length} item?`)) return;
-    await bulkMoveToTrash(selectedIds);
-    setSelectedIds([]);
-    setSelectionMode(false);
-    toast.success(`${selectedIds.length} item dipindahkan ke tempat sampah`);
   };
 
   const handleExport = () => {
@@ -188,7 +206,7 @@ export const VaultPage = () => {
               setSelectedIds([]);
             }}
             onAddCategory={() => setShowCategoryManager(true)}
-            onOpenTrash={() => window.location.href = "/trash"}
+            onOpenTrash={() => navigate("/trash")}
             onOpenSettings={() => setShowSettings(true)}
             onLogout={signOut}
             loading={false}
@@ -212,7 +230,7 @@ export const VaultPage = () => {
               setShowCategoryManager(true);
               setMobileMenuOpen(false);
             }}
-            onOpenTrash={() => { window.location.href = "/trash"; setMobileMenuOpen(false); }}
+            onOpenTrash={() => { navigate("/trash"); setMobileMenuOpen(false); }}
             onOpenSettings={() => { setShowSettings(true); setMobileMenuOpen(false); }}
             onLogout={signOut}
             loading={false}
@@ -261,7 +279,7 @@ export const VaultPage = () => {
             <BulkActionsBar
               selectedCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
-              onDelete={handleBulkDelete}
+              onDelete={requestBulkDelete}
               onFavorite={async () => {
                 for (const id of selectedIds) {
                   const item = items.find((i) => i.id === id);
@@ -278,7 +296,7 @@ export const VaultPage = () => {
               loading={loading}
               searchQuery={debouncedSearch}
               onEdit={(item) => { setEditingItem(item); setShowEditor(true); }}
-              onDelete={handleDelete}
+              onDelete={requestDelete}
               onToggleFavorite={toggleFavorite}
               onCopy={handleCopy}
               selectedIds={selectedIds}
@@ -290,22 +308,15 @@ export const VaultPage = () => {
         </main>
       </div>
 
-      {/* Floating Chat Button — hanya admin */}
-      {isAdmin && (
+      {/* Tombol AI — hanya admin yang punya akses. Membuka halaman /ai. */}
+      {canUseAI && (
         <button
-          onClick={() => setShowChat(!showChat)}
+          onClick={() => navigate("/ai")}
+          title="Matriks AI (Ctrl+B)"
           className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition-transform hover:scale-110 active:scale-95 dark:bg-white dark:text-slate-900"
         >
           <MessageSquare className="h-5 w-5" />
         </button>
-      )}
-
-      {isAdmin && (
-        <ChatPanel
-          isOpen={showChat}
-          onClose={() => setShowChat(false)}
-          vaultContext={`User memiliki ${items.length} item di vault.`}
-        />
       )}
 
       <ItemEditor
@@ -330,8 +341,25 @@ export const VaultPage = () => {
         onClose={() => setShowSettings(false)}
         user={user}
         onLogout={signOut}
-        onUpdatePassword={async (pwd) => { await updatePassword(pwd); toast.success("Password diperbarui"); }}
-        onDeleteAccount={async () => { toast.info("Fitur hapus akun dalam pengembangan"); }}
+        onUpdatePassword={async (pwd) => {
+          const { error } = await updatePassword(pwd);
+          if (error) toast.error(error.message || "Gagal memperbarui password");
+          else toast.success("Password diperbarui");
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmDelete}
+        title="Hapus Item"
+        message={
+          confirmDelete?.type === "bulk"
+            ? `Yakin ingin menghapus ${confirmDelete?.ids?.length || 0} item secara permanen? Tindakan ini TIDAK bisa dibatalkan dan item TIDAK masuk ke Tempat Sampah.`
+            : "Yakin ingin menghapus item ini secara permanen? Tindakan ini TIDAK bisa dibatalkan dan item TIDAK masuk ke Tempat Sampah."
+        }
+        confirmLabel="Hapus Permanen"
+        loading={deleting}
+        onConfirm={doDelete}
+        onCancel={() => setConfirmDelete(null)}
       />
     </div>
   );

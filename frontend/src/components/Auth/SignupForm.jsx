@@ -4,10 +4,10 @@ import { Button } from "../UI/Button";
 import { Input } from "../UI/Input";
 import { APP_NAME } from "../../lib/constants";
 import { isStrongPassword } from "../../utils/validators";
-
-const ACCESS_CODE = "MATRIKS2026"; // Ganti ini kalau mau kode lain
+import { useInviteCode } from "../../hooks/useInviteCode";
 
 export const SignupForm = ({ onSubmit, onToggleMode, loading, error }) => {
+  const { code: inviteCode, loading: codeLoading } = useInviteCode();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,7 +21,7 @@ export const SignupForm = ({ onSubmit, onToggleMode, loading, error }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (accessCode !== ACCESS_CODE) {
+    if (accessCode !== inviteCode) {
       alert("Kode akses tidak valid. Hubungi admin untuk mendapatkan kode.");
       return;
     }
@@ -29,7 +29,7 @@ export const SignupForm = ({ onSubmit, onToggleMode, loading, error }) => {
     onSubmit(email, password);
   };
 
-  const isValid = email && password && confirmPassword && password === confirmPassword && agreed && accessCode;
+  const isValid = email && password && confirmPassword && password === confirmPassword && agreed && accessCode && !codeLoading;
 
   return (
     <div className="w-full max-w-md mx-auto">
