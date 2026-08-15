@@ -30,16 +30,15 @@ export const ChatPanel = ({ isOpen, onClose, vaultContext = "" }) => {
     setLoading(true);
 
     try {
-      // TODO: Ganti dengan endpoint AI Anda yang sebenarnya
-      // Contoh integrasi dengan Kimi API:
-      const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
+      // Integrasi Kimi (Moonshot) API — domain internasional + model kimi-k3
+      const response = await fetch("https://api.moonshot.ai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${process.env.REACT_APP_KIMI_API_KEY || ""}`,
         },
         body: JSON.stringify({
-          model: "kimi-latest",
+          model: "kimi-k3",
           messages: [
             {
               role: "system",
