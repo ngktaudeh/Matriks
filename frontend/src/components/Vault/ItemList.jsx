@@ -11,6 +11,7 @@ export const ItemList = ({
   onDelete,
   onToggleFavorite,
   onCopy,
+  onOpenImage,
   selectedIds,
   onSelect,
   selectionMode,
@@ -46,6 +47,7 @@ export const ItemList = ({
           onDelete={onDelete}
           onToggleFavorite={onToggleFavorite}
           onCopy={onCopy}
+          onOpenImage={onOpenImage}
           isSelected={selectedIds.includes(item.id)}
           onSelect={onSelect}
           selectionMode={selectionMode}

@@ -8,6 +8,7 @@ import { SearchBar } from "../components/Vault/SearchBar";
 import { SortDropdown } from "../components/Vault/SortDropdown";
 import { ItemList } from "../components/Vault/ItemList";
 import { ItemEditor } from "../components/Vault/ItemEditor";
+import { ImageLightbox } from "../components/Vault/ImageLightbox";
 import { CategoryManager } from "../components/Vault/CategoryManager";
 import { BulkActionsBar } from "../components/Vault/BulkActionsBar";
 import { ChatPanel } from "../components/AI/ChatPanel";
@@ -35,6 +36,7 @@ export const VaultPage = () => {
   const [showChat, setShowChat] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   const debouncedSearch = useDebounce(search, 300);
   const { copy } = useClipboard();
@@ -277,6 +279,7 @@ export const VaultPage = () => {
               onDelete={handleDelete}
               onToggleFavorite={toggleFavorite}
               onCopy={handleCopy}
+              onOpenImage={(url) => setLightboxUrl(url)}
               selectedIds={selectedIds}
               onSelect={handleSelect}
               selectionMode={selectionMode}
@@ -307,6 +310,8 @@ export const VaultPage = () => {
         item={editingItem}
         categories={categories}
       />
+
+      <ImageLightbox imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />
 
       <CategoryManager
         isOpen={showCategoryManager}

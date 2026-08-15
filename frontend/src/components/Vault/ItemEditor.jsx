@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { X, Tag, Save, Sparkles } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Tag, Save, Sparkles, ImagePlus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "../UI/Button";
 import { Input } from "../UI/Input";
 import { Modal } from "../UI/Modal";
 import { PasswordGenerator } from "./PasswordGenerator";
 import { ITEM_TEMPLATES } from "../../lib/constants";
 import { validateItem } from "../../utils/validators";
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export const ItemEditor = ({ isOpen, onClose, onSave, item = null, categories = [] }) => {
   const [form, setForm] = useState({
@@ -14,11 +16,16 @@ export const ItemEditor = ({ isOpen, onClose, onSave, item = null, categories = 
     category: "Notes",
     tags: [],
     favorite: false,
+    image_url: null,
+    image_file: null,
+    image_removed: false,
   });
   const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState({});
   const [showGenerator, setShowGenerator] = useState(false);
   const [template, setTemplate] = useState(null);
+  const [imageError, setImageError] = useState("");
+  const fileRef = useRef(null);
 
   useEffect(() => {
     if (item) {
@@ -28,18 +35,62 @@ export const ItemEditor = ({ isOpen, onClose, onSave, item = null, categories = 
         category: item.category || "Notes",
         tags: item.tags || [],
         favorite: item.favorite || false,
+        image_url: item.image_url || null,
+        image_file: null,
+        image_removed: false,
       });
       setTemplate(null);
+      setImageError("");
     } else {
-      setForm({ title: "", content: "", category: "Notes", tags: [], favorite: false });
+      setForm({
+        title: "",
+        content: "",
+        category: "Notes",
+        tags: [],
+        favorite: false,
+        image_url: null,
+        image_file: null,
+        image_removed: false,
+      });
       setErrors({});
       setTemplate(null);
+      setImageError("");
     }
   }, [item, isOpen]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const onPickImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setImageError("Pilih file gambar (jpg, png, webp, gif).");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError("Gambar maksimal 5MB.");
+      return;
+    }
+    setImageError("");
+    setForm((prev) => ({
+      ...prev,
+      image_file: file,
+      image_url: URL.createObjectURL(file),
+      image_removed: false,
+    }));
+    e.target.value = "";
+  };
+
+  const onRemoveImage = () => {
+    setForm((prev) => ({
+      ...prev,
+      image_file: null,
+      image_url: null,
+      image_removed: true,
+    }));
   };
 
   const handleAddTag = (e) => {
@@ -162,6 +213,59 @@ export const ItemEditor = ({ isOpen, onClose, onSave, item = null, categories = 
             className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-slate-800 resize-y"
           />
           {errors.content && <p className="mt-1 text-xs text-red-500">{errors.content}</p>}
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Gambar <span className="font-normal text-slate-400">(opsional, max 5MB)</span>
+          </label>
+
+          {form.image_url ? (
+            <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+              <img
+                src={form.image_url}
+                alt="Preview"
+                className="aspect-video w-full object-cover"
+              />
+              <div className="flex items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+                <span className="truncate text-xs text-slate-500 dark:text-slate-400">
+                  {form.image_file?.name || "Gambar saat ini"}
+                </span>
+                <button
+                  type="button"
+                  onClick={onRemoveImage}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Hapus
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 px-4 py-7 text-center transition-colors hover:border-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:hover:border-slate-500 dark:hover:bg-slate-800/50"
+            >
+              <ImagePlus className="h-6 w-6 text-slate-400" />
+              <p className="mt-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+                Klik untuk upload gambar
+              </p>
+              <p className="mt-1 text-xs text-slate-400">JPG, PNG, WebP, GIF · max 5MB</p>
+            </button>
+          )}
+
+          {imageError && (
+            <p className="mt-2 text-xs font-medium text-red-500">{imageError}</p>
+          )}
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onPickImage}
+          />
         </div>
 
         <div>

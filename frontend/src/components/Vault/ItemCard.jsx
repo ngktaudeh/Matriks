@@ -27,6 +27,7 @@ export const ItemCard = ({
   onDelete,
   onToggleFavorite,
   onCopy,
+  onOpenImage,
   isSelected,
   onSelect,
   selectionMode,
@@ -74,6 +75,22 @@ export const ItemCard = ({
             className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500 dark:border-slate-600"
           />
         </div>
+      )}
+
+      {item.image_url && (
+        <button
+          type="button"
+          onClick={() => onOpenImage?.(item.image_url)}
+          className="block w-full overflow-hidden border-b border-slate-200 dark:border-slate-700"
+          title="Lihat gambar"
+        >
+          <img
+            src={item.image_url}
+            alt={item.title}
+            loading="lazy"
+            className="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        </button>
       )}
 
       <div className="p-4">

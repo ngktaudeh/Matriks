@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { compressImage } from "../utils/image";
 
 export const useItems = (userId, view = "active") => {
   const [items, setItems] = useState([]);
@@ -37,29 +38,74 @@ export const useItems = (userId, view = "active") => {
     fetchItems();
   }, [fetchItems]);
 
+  // Upload file gambar ke bucket `item-images`, kembalikan URL publik.
+  const uploadImage = useCallback(async (file, uid) => {
+    if (!supabase) throw new Error("Konfigurasi Supabase belum lengkap.");
+    const compressed = await compressImage(file);
+    const safeName =
+      compressed.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120) || "image";
+    const path = `${uid || "user"}/${Date.now()}-${safeName}`;
+    const { error: upErr } = await supabase.storage
+      .from("item-images")
+      .upload(path, compressed, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: compressed.type,
+      });
+    if (upErr) throw upErr;
+    const { data: pub } = supabase.storage.from("item-images").getPublicUrl(path);
+    return pub?.publicUrl || null;
+  }, []);
+
   const addItem = useCallback(async (item) => {
     if (!userId) return { error: "Not authenticated" };
     if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
+
+    // Upload gambar (jika ada) sebelum menyimpan item.
+    const { image_file, image_removed, ...rest } = item;
+    let image_url = rest.image_url || null;
+    try {
+      if (image_file) {
+        image_url = await uploadImage(image_file, userId);
+      }
+    } catch (e) {
+      return { error: { message: e.message || "Upload gambar gagal" } };
+    }
+
     const { data, error } = await supabase
       .from("items")
-      .insert([{ ...item, user_id: userId }])
+      .insert([{ ...rest, image_url, user_id: userId }])
       .select()
       .single();
     if (!error) setItems((prev) => [data, ...prev]);
     return { data, error };
-  }, [userId]);
+  }, [userId, uploadImage]);
 
   const updateItem = useCallback(async (id, updates) => {
     if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
+
+    // Upload gambar baru (jika ada) sebelum update.
+    const { image_file, image_removed, ...rest } = updates;
+    let image_url = rest.image_url ?? null;
+    try {
+      if (image_file) {
+        image_url = await uploadImage(image_file, userId);
+      } else if (image_removed) {
+        image_url = null;
+      }
+    } catch (e) {
+      return { error: { message: e.message || "Upload gambar gagal" } };
+    }
+
     const { data, error } = await supabase
       .from("items")
-      .update(updates)
+      .update({ ...rest, image_url })
       .eq("id", id)
       .select()
       .single();
     if (!error) setItems((prev) => prev.map((i) => (i.id === id ? data : i)));
     return { data, error };
-  }, []);
+  }, [userId, uploadImage]);
 
   const toggleFavorite = useCallback(async (id, current) => {
     return updateItem(id, { favorite: !current });
