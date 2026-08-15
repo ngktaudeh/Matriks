@@ -1,97 +1,120 @@
 // frontend/src/kimi.js
 //
-// Utilitas serbaguna untuk memanggil Kimi (Moonshot API) dari sisi SaaS
-// developer: bisa dipakai untuk brainstorming desain UI/UX, review/ide kode
-// frontend, strategi produk SaaS, sampai ide prompt gambar/ilustrasi.
-//
-// Cara pakai singkat:
-//   import { tanyaKimi, getRandomQuestion, CATEGORIES } from "./kimi";
-//   const jawaban = await tanyaKimi("pertanyaanmu", "design");
-//   const idePertanyaan = getRandomQuestion("gambar");
+// Asisten Kimi (Moonshot API) untuk Bank Jawaban CS
+// - Multi-turn (riwayat percakapan dikirim ke API)
+// - reasoning_effort: "max" (mendekati mode premium Kimi.ai)
+// - System prompt lebih kuat + spesialisasi per kategori
 
 /* ------------------------------------------------------------------ */
-/*  Kategori & system prompt per peran                                 */
+/* Kategori & system prompt */
 /* ------------------------------------------------------------------ */
+
+const BASE_PERSONA = `Kamu adalah Kimi, asisten AI yang cerdas, ramah, dan sangat praktis.
+Jawab dalam Bahasa Indonesia yang jelas, natural, dan mudah dipraktekkan.
+- Utamakan jawaban yang actionable (bisa langsung dipakai).
+- Jika soal rumit, pikirkan langkah demi langkah secara ringkas, lalu berikan kesimpulan yang tegas.
+- Jika informasi kurang, tanyakan 1–2 hal penting saja.
+- Hindari basa-basi berlebih dan pengulangan.
+- Jika diminta kode, berikan kode yang siap pakai dan jelaskan singkat kenapa.
+- Jika diminta jawaban CS/chat pelanggan, utamakan nada empati, sopan, dan solutif.`;
 
 export const CATEGORIES = {
   design: {
     label: "UI/UX Desain",
     systemPrompt:
-      "Kamu adalah UI/UX Designer profesional untuk produk SaaS. Jawab dalam " +
-      "Bahasa Indonesia yang singkat, praktis, dan langsung bisa dipakai. " +
-      "Kalau relevan, sertakan contoh kode CSS/HTML/Tailwind serta kode hex warna.",
+      BASE_PERSONA +
+      `\n\nPeran tambahan: UI/UX Designer untuk produk SaaS.
+Fokus pada kejelasan, konsistensi, dan kemudahan pakai.
+Jika relevan, sertakan contoh Tailwind/CSS singkat dan kode hex warna.`,
   },
   code: {
     label: "Kode Frontend",
     systemPrompt:
-      "Kamu adalah Senior Frontend Developer (React) untuk produk SaaS. " +
-      "Jawab dalam Bahasa Indonesia yang ringkas, beri contoh kode React/JS " +
-      "yang benar dan siap tempel, serta jelaskan alasan singkatnya.",
+      BASE_PERSONA +
+      `\n\nPeran tambahan: Senior Frontend Developer (React).
+Berikan contoh kode React/JavaScript yang benar, ringkas, dan siap tempel.
+Jelaskan alasan teknis secara singkat.`,
   },
   saas: {
     label: "Strategi Produk SaaS",
     systemPrompt:
-      "Kamu adalah SaaS Product Strategist/Growth Advisor berpengalaman. " +
-      "Jawab dalam Bahasa Indonesia, fokus pada saran yang actionable untuk " +
-      "produk SaaS kecil-menengah: onboarding, pricing, retensi, dan fitur.",
+      BASE_PERSONA +
+      `\n\nPeran tambahan: SaaS Product Strategist.
+Fokus pada saran praktis untuk produk kecil–menengah: onboarding, pricing, retensi, positioning, dan prioritas fitur.`,
   },
   gambar: {
     label: "Ide Gambar/Ilustrasi",
     systemPrompt:
-      "Kamu adalah Art Director yang membantu menyusun ide visual untuk " +
-      "produk SaaS. Jawab dalam Bahasa Indonesia. Kamu TIDAK bisa membuat " +
-      "gambar langsung, jadi berikan deskripsi/ide visual yang jelas dan " +
-      "juga contoh prompt (dalam Bahasa Inggris, satu baris) yang bisa " +
-      "ditempel ke tool image generator seperti Midjourney/DALL·E.",
+      BASE_PERSONA +
+      `\n\nPeran tambahan: Art Director untuk produk SaaS.
+Kamu TIDAK membuat gambar langsung.
+Berikan deskripsi visual yang jelas + 1 prompt bahasa Inggris (satu baris) siap tempel ke Midjourney/DALL·E.`,
+  },
+  cs: {
+    label: "Jawaban CS",
+    systemPrompt:
+      BASE_PERSONA +
+      `\n\nPeran tambahan: Spesialis Customer Service.
+Tugasmu menulis / memperbaiki jawaban untuk pelanggan.
+Utamakan empati, kejelasan, dan solusi.
+Jika cocok, siapkan versi singkat yang siap copy-paste.
+Hormati placeholder seperti {{nama}}, {{order_id}}, dll — jangan dihapus kecuali diminta.`,
   },
   random: {
     label: "Ide Acak",
     systemPrompt:
-      "Kamu adalah asisten kreatif serba bisa untuk developer SaaS solo. " +
-      "Jawab dalam Bahasa Indonesia, singkat, dan berikan sudut pandang " +
-      "yang segar/tidak biasa.",
+      BASE_PERSONA +
+      `\n\nPeran tambahan: asisten kreatif untuk developer/solo founder.
+Berikan sudut pandang segar, konkret, dan bisa dicoba hari ini.`,
   },
 };
 
 /* ------------------------------------------------------------------ */
-/*  Bank pertanyaan random per kategori (buat tombol "Kejutkan aku")   */
+/* Bank pertanyaan random */
 /* ------------------------------------------------------------------ */
 
 const RANDOM_QUESTIONS = {
   design: [
-    "Berikan palet warna hex code modern untuk dashboard SaaS bertema penyimpanan data rahasia.",
-    "Saran font pairing (judul + body) yang cocok untuk landing page SaaS B2B.",
-    "Bagaimana cara mendesain empty state yang ramah untuk fitur baru yang belum ada datanya?",
-    "Rancangkan struktur spacing/grid yang konsisten untuk dashboard admin.",
-    "Bagaimana membuat form panjang terasa lebih ringan secara visual?",
+    "Saran layout dashboard yang tidak terasa ramai untuk user non-teknis?",
+    "Palette warna modern untuk SaaS B2B yang terasa percaya diri tapi tidak kaku?",
+    "Cara membuat empty state yang mendorong user melakukan aksi pertama?",
+    "Contoh hierarki tipografi yang rapi untuk halaman pengaturan?",
+    "Ide micro-interaction kecil yang terasa premium tanpa mengganggu?",
   ],
   code: [
-    "Bagaimana cara membuat komponen modal reusable di React yang bisa dipakai berkali-kali?",
-    "Contoh pola custom hook untuk debounce input pencarian di React.",
-    "Bagaimana cara terbaik menangani loading & error state secara konsisten di banyak komponen?",
-    "Berikan contoh cara lazy-load gambar di React tanpa library tambahan.",
-    "Bagaimana strategi menata folder project React yang scalable untuk SaaS?",
+    "Pola state management sederhana di React untuk form multi-step?",
+    "Cara menampilkan loading skeleton yang tidak bikin layout loncat?",
+    "Contoh komponen SearchInput yang reusable dan accessible?",
+    "Best practice menyimpan draft form ke localStorage tanpa ribet?",
+    "Cara rapi handle error API di UI agar user tidak bingung?",
   ],
   saas: [
-    "Ide fitur onboarding sederhana yang meningkatkan aktivasi user baru.",
-    "Bagaimana menyusun tiga tingkat paket harga (pricing tier) yang masuk akal untuk SaaS kecil?",
-    "Ide email re-engagement untuk user yang sudah seminggu tidak login.",
-    "Metrik apa yang paling penting dipantau di bulan pertama peluncuran SaaS?",
-    "Ide fitur 'quick win' yang murah dibangun tapi berdampak besar ke retensi.",
+    "Metrik apa yang paling penting dipantau di 30 hari pertama setelah launch?",
+    "Ide onboarding 3 langkah agar user langsung merasakan value?",
+    "Strategi pricing sederhana untuk produk vault/template jawaban CS?",
+    "Cara meningkatkan retensi user yang hanya datang saat ada komplain?",
+    "Fitur 'quick win' murah dibangun tapi berdampak ke retensi?",
   ],
   gambar: [
-    "Ide ilustrasi hero section untuk landing page SaaS bertema keamanan data.",
-    "Ide ikon set minimalis untuk fitur chat, notifikasi, dan pengaturan.",
-    "Ide ilustrasi empty state untuk halaman 'belum ada transaksi'.",
-    "Ide gaya visual (mood) untuk SaaS yang menyasar pengguna kreatif/desainer.",
-    "Ide background pattern lembut untuk halaman login SaaS.",
+    "Ide ilustrasi hero untuk landing page bank jawaban CS?",
+    "Ide ikon set minimalis: chat, template, favorit, pengaturan?",
+    "Ide empty state visual untuk 'belum ada jawaban tersimpan'?",
+    "Mood visual untuk SaaS yang menyasar tim customer support?",
+    "Prompt gambar untuk background lembut halaman login SaaS?",
+  ],
+  cs: [
+    "Tulis balasan empati untuk pelanggan yang paketnya terlambat 3 hari.",
+    "Buat jawaban singkat untuk pertanyaan cara cek status pengiriman.",
+    "Perbaiki jawaban CS ini agar lebih sopan dan solutif: 'Barang sedang diproses.'",
+    "Buat template refund dengan placeholder {{nama}} dan {{order_id}}.",
+    "Versi lebih singkat dari jawaban komplain kualitas barang.",
   ],
   random: [
-    "Kalau produk SaaS ini adalah sebuah kota, kota seperti apa dia dan kenapa?",
-    "Satu fitur 'nyeleneh' apa yang bisa jadi pembeda unik dari kompetitor?",
+    "Kalau produk ini adalah sebuah kota, kota seperti apa dan kenapa?",
+    "Satu fitur 'nyeleneh' yang bisa jadi pembeda dari kompetitor?",
     "Kalau harus menjelaskan produk ini ke anak SD, bagaimana caranya?",
-    "Nama codename yang catchy untuk rilis fitur besar berikutnya?",
-    "Satu kebiasaan kecil developer solo yang bisa menghemat banyak waktu?",
+    "Codename catchy untuk rilis fitur besar berikutnya?",
+    "Kebiasaan kecil developer solo yang bisa menghemat banyak waktu?",
   ],
 };
 
@@ -101,31 +124,49 @@ export const getRandomQuestion = (category = "random") => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Pemanggil utama ke Kimi (Moonshot API)                             */
+/* Pemanggil utama */
 /* ------------------------------------------------------------------ */
 
 /**
  * tanyaKimi
- * @param {string} pertanyaan - pertanyaan/instruksi untuk Kimi
- * @param {string} category - salah satu key dari CATEGORIES ("design",
- *   "code", "saas", "gambar", "random"). Default: "design".
- * @param {object} [options] - opsi tambahan (opsional)
- * @param {number} [options.temperature=1]
+ *
+ * @param {string} pertanyaan - pesan user terbaru
+ * @param {string} [category="cs"] - key dari CATEGORIES
+ * @param {object} [options]
+ * @param {Array<{role: string, content: string}>} [options.history] - riwayat sebelumnya (tanpa pesan terbaru)
  * @param {string} [options.model="kimi-k3"]
- * @returns {Promise<string>} jawaban teks dari Kimi (atau pesan error)
+ * @param {string} [options.reasoning_effort="max"] - "low" | "high" | "max"
+ * @returns {Promise<string>}
  */
-export async function tanyaKimi(pertanyaan, category = "design", options = {}) {
+export async function tanyaKimi(pertanyaan, category = "cs", options = {}) {
   const apiKey = process.env.REACT_APP_KIMI_API_KEY;
 
   if (!apiKey) {
-    return "Error: API Key belum masuk! Pastikan file .env sudah dibuat dan server sudah di-restart.";
+    return "Error: API Key belum masuk! Pastikan environment variable REACT_APP_KIMI_API_KEY sudah di-set dan app sudah di-redeploy.";
   }
   if (!pertanyaan || !pertanyaan.trim()) {
     return "Error: Pertanyaan tidak boleh kosong.";
   }
 
-  const preset = CATEGORIES[category] || CATEGORIES.design;
-  const { temperature = 1, model = "kimi-k3" } = options;
+  const preset = CATEGORIES[category] || CATEGORIES.cs;
+  const {
+    history = [],
+    model = "kimi-k3",
+    reasoning_effort = "max",
+  } = options;
+
+  // Ambil beberapa pesan terakhir saja agar tidak terlalu boros token
+  const MAX_HISTORY = 12;
+  const trimmedHistory = (Array.isArray(history) ? history : [])
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && m.content)
+    .slice(-MAX_HISTORY)
+    .map((m) => ({ role: m.role, content: String(m.content) }));
+
+  const messages = [
+    { role: "system", content: preset.systemPrompt },
+    ...trimmedHistory,
+    { role: "user", content: pertanyaan.trim() },
+  ];
 
   try {
     const response = await fetch("https://api.moonshot.ai/v1/chat/completions", {
@@ -136,11 +177,9 @@ export async function tanyaKimi(pertanyaan, category = "design", options = {}) {
       },
       body: JSON.stringify({
         model,
-        messages: [
-          { role: "system", content: preset.systemPrompt },
-          { role: "user", content: pertanyaan },
-        ],
-        temperature,
+        messages,
+        reasoning_effort,
+        // temperature untuk kimi-k3 fixed 1; tidak perlu dikirim
       }),
     });
 

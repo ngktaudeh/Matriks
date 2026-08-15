@@ -30,6 +30,7 @@ import {
   Lock,
   BadgeCheck,
   KeyRound,
+  Sparkles,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -1354,6 +1355,9 @@ const Sidebar = ({
   search,
   setSearch,
   isAdmin,
+  canUseAI,
+  matrixOpen,
+  onOpenMatrix,
   onNewCategory,
   onClose,
   userEmail,
@@ -1430,6 +1434,21 @@ const Sidebar = ({
           >
             <Plus size={16} />
             Topik Baru
+          </button>
+        )}
+
+        {canUseAI && (
+          <button
+            data-testid="matrix-ai-btn"
+            onClick={onOpenMatrix}
+            className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 font-sans text-sm font-semibold transition-colors duration-150 ${
+              matrixOpen
+                ? "bg-violet-600 text-white shadow-sm"
+                : "bg-violet-500/15 text-violet-600 hover:bg-violet-500/25 dark:text-violet-300"
+            }`}
+          >
+            <Sparkles size={16} />
+            Matriks.ai
           </button>
         )}
       </div>
@@ -1584,6 +1603,7 @@ const ProfileModal = ({
   onApproveAdmin,
   onRejectAdmin,
   onRemoveAdmin,
+  onToggleAiAccess,
 }) => {
   const [tab, setTab] = useState("profile");
   const [pw1, setPw1] = useState("");
@@ -1722,7 +1742,7 @@ const ProfileModal = ({
           {tab === "admins" && isOwner && (
             <div className="space-y-3">
               <p className="font-sans text-sm text-muted-foreground">
-                Berikut daftar admin. Terima permintaan pendaftaran, atau hapus akses admin lain.
+                Berikut daftar admin. Terima permintaan pendaftaran, atur akses Matriks.ai, atau hapus akses admin lain.
               </p>
               {admins.length === 0 ? (
                 <p className="font-serif text-[14px] text-muted-foreground">Belum ada admin lain.</p>
@@ -1758,13 +1778,28 @@ const ProfileModal = ({
                         </>
                       )}
                       {a.role !== "owner" && a.status === "approved" && (
-                        <button
-                          data-testid={`remove-admin-${a.email}`}
-                          onClick={() => onRemoveAdmin(a)}
-                          className="rounded-lg bg-destructive/10 px-2.5 py-1.5 font-sans text-xs font-semibold text-destructive transition-colors duration-150 hover:bg-destructive/20"
-                        >
-                          Hapus akses
-                        </button>
+                        <>
+                          <button
+                            data-testid={`toggle-ai-${a.email}`}
+                            onClick={() => onToggleAiAccess(a)}
+                            className={`rounded-lg px-2.5 py-1.5 font-sans text-xs font-semibold transition-colors duration-150 ${
+                              a.ai_access
+                                ? "bg-violet-500/15 text-violet-600 hover:bg-violet-500/25 dark:text-violet-300"
+                                : "bg-secondary text-muted-foreground hover:bg-secondary/70"
+                            }`}
+                            title={a.ai_access ? "Matriks.ai aktif — klik untuk nonaktifkan" : "Matriks.ai nonaktif — klik untuk aktifkan"}
+                          >
+                            <Sparkles size={13} className="mr-1 inline" />
+                            {a.ai_access ? "AI aktif" : "AI mati"}
+                          </button>
+                          <button
+                            data-testid={`remove-admin-${a.email}`}
+                            onClick={() => onRemoveAdmin(a)}
+                            className="rounded-lg bg-destructive/10 px-2.5 py-1.5 font-sans text-xs font-semibold text-destructive transition-colors duration-150 hover:bg-destructive/20"
+                          >
+                            Hapus akses
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1809,7 +1844,7 @@ const ConfigError = () => (
 /* ------------------------------------------------------------------ */
 
 const TombolKimi = () => {
-  const [category, setCategory] = useState("design");
+  const [category, setCategory] = useState("cs");
   const [pertanyaan, setPertanyaan] = useState("");
   const [messages, setMessages] = useState([]); // [{ role: 'user'|'assistant', content: string }]
   const [loading, setLoading] = useState(false);
@@ -1832,9 +1867,15 @@ const TombolKimi = () => {
     setMessages((prev) => [...prev, { role: "user", content: finalPertanyaan }]);
 
     try {
+      const history = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
       const hasil = await tanyaKimi(finalPertanyaan, category, {
+        history,
         model: "kimi-k3",
-        temperature: 1,
+        reasoning_effort: "max",
       });
 
       setMessages((prev) => [
@@ -1867,16 +1908,16 @@ const TombolKimi = () => {
   return (
     <div
       data-testid="kimi-panel"
-      className="flex h-[520px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-md"
+      className="flex h-full min-h-0 flex-col overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-primary">
-            <span className="text-sm">🤖</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white">
+            <Sparkles size={18} />
           </div>
           <div>
-            <h3 className="font-sans text-sm font-semibold leading-tight">Asisten Kimi</h3>
+            <h3 className="font-sans text-sm font-semibold leading-tight">Matriks.ai</h3>
             <p className="font-sans text-[11px] text-muted-foreground">
               {CATEGORIES[category]?.label || "AI Assistant"}
             </p>
@@ -1888,7 +1929,7 @@ const TombolKimi = () => {
             data-testid="kimi-category-select"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="rounded-lg border border-input bg-background px-2.5 py-1.5 font-sans text-xs font-medium outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
+            className="rounded-lg border border-input bg-background px-2.5 py-1.5 font-sans text-xs font-medium outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/30"
           >
             {Object.entries(CATEGORIES).map(([key, val]) => (
               <option key={key} value={key}>
@@ -1914,13 +1955,13 @@ const TombolKimi = () => {
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {messages.length === 0 && !loading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/15 text-2xl">
               ✨
             </div>
             <div>
               <p className="font-sans text-sm font-semibold">Ada yang bisa dibantu?</p>
-              <p className="mt-1 max-w-[260px] font-sans text-xs text-muted-foreground">
-                Tanya seputar desain, kode, strategi SaaS, atau ide visual.
+              <p className="mt-1 max-w-[300px] font-sans text-xs text-muted-foreground">
+                Tanya seputar jawaban CS, desain, kode, strategi SaaS, atau ide visual.
               </p>
             </div>
             <button
@@ -1940,8 +1981,8 @@ const TombolKimi = () => {
             <div
               className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 font-sans text-sm leading-relaxed ${
                 msg.role === "user"
-                  ? "rounded-br-md bg-primary text-primary-foreground"
-                  : "rounded-bl-md border border-border bg-background text-foreground"
+                  ? "rounded-br-md bg-violet-600 text-white"
+                  : "rounded-bl-md border border-border bg-card text-foreground"
               }`}
             >
               <div className="whitespace-pre-wrap break-words">{msg.content}</div>
@@ -1952,7 +1993,7 @@ const TombolKimi = () => {
         {/* Loading bubble */}
         {loading && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-border bg-background px-4 py-3">
+            <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-border bg-card px-4 py-3">
               <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
               <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
               <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" />
@@ -1965,7 +2006,7 @@ const TombolKimi = () => {
 
       {/* Input area */}
       <div className="border-t border-border p-3">
-        <div className="flex items-end gap-2 rounded-xl border border-input bg-background p-1.5 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/30">
+        <div className="flex items-end gap-2 rounded-xl border border-input bg-card p-1.5 shadow-sm focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/30">
           <textarea
             ref={inputRef}
             data-testid="kimi-question-input"
@@ -1985,7 +2026,7 @@ const TombolKimi = () => {
             data-testid="kimi-ask-btn"
             onClick={() => kirim()}
             disabled={loading || !pertanyaan.trim()}
-            className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:opacity-90 disabled:opacity-40"
+            className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white transition-all hover:opacity-90 disabled:opacity-40"
             title="Kirim"
           >
             {loading ? (
@@ -2046,6 +2087,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
   const [catDeleteTarget, setCatDeleteTarget] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [matrixOpen, setMatrixOpen] = useState(false);
 
   const searchRef = useRef(null);
 
@@ -2057,13 +2099,15 @@ const Dashboard = ({ session, theme, setTheme }) => {
   const isOwner = myRecord?.role === "owner";
   const isApproved = myRecord?.status === "approved";
   const isAdmin = isOwner || isApproved;
+  // Owner selalu boleh pakai Matriks.ai; admin lain hanya kalau diaktifkan owner.
+  const canUseAI = isOwner || myRecord?.ai_access === true;
   const pendingCount = useMemo(() => admins.filter((a) => a.status === "pending").length, [admins]);
 
   /* ---- fetch admins ---- */
   const fetchAdmins = useCallback(async () => {
     const { data, error } = await supabase
       .from("admins")
-      .select("id,email,role,status,created_at")
+      .select("id,email,role,status,created_at,ai_access")
       .order("created_at", { ascending: true });
     if (error) {
       // non-owner sees only approved/self; swallowing is fine but surface softly
@@ -2453,6 +2497,12 @@ const Dashboard = ({ session, theme, setTheme }) => {
 
   const selectCat = (cat) => {
     setActive(cat);
+    setMatrixOpen(false);
+    setDrawerOpen(false);
+  };
+
+  const openMatrix = () => {
+    setMatrixOpen(true);
     setDrawerOpen(false);
   };
 
@@ -2495,6 +2545,14 @@ const Dashboard = ({ session, theme, setTheme }) => {
     fetchAdmins();
   };
 
+  const toggleAiAccess = async (a) => {
+    const next = !a.ai_access;
+    const { error } = await supabase.from("admins").update({ ai_access: next }).eq("id", a.id);
+    if (error) { toast.error(error.message || "Gagal mengubah akses AI"); return; }
+    toast.success(`Matriks.ai ${next ? "diaktifkan" : "dinonaktifkan"} untuk ${a.email}`);
+    fetchAdmins();
+  };
+
   const handleLoginSuccess = async () => {
     setLoginOpen(false);
     await fetchAdmins();
@@ -2508,6 +2566,9 @@ const Dashboard = ({ session, theme, setTheme }) => {
     search,
     setSearch,
     isAdmin,
+    canUseAI,
+    matrixOpen,
+    onOpenMatrix: openMatrix,
     onNewCategory: () => setCatModalOpen(true),
     onClose: () => setDrawerOpen(false),
     userEmail: session?.user?.email,
@@ -2535,7 +2596,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-md sm:px-6">
+        <header className={`sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-md sm:px-6 ${matrixOpen ? "hidden" : ""}`}>
           <button
             data-testid="drawer-toggle-btn"
             onClick={() => setDrawerOpen(true)}
@@ -2595,7 +2656,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
           </div>
         </header>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2.5 sm:px-6">
+        <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2.5 sm:px-6 ${matrixOpen ? "hidden" : ""}`}>
           <div className="flex items-center gap-2">
             <h1 className="font-display text-xl font-semibold tracking-wide sm:text-2xl">{active}</h1>
             {isAdmin && (
@@ -2635,13 +2696,13 @@ const Dashboard = ({ session, theme, setTheme }) => {
           </div>
         </div>
 
-        <main className="vault-scroll flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-          {isAdmin && (
-            <div className="mb-4">
+        <main className="min-h-0 flex-1 overflow-hidden">
+          {matrixOpen ? (
+            <div className="h-full">
               <TombolKimi />
             </div>
-          )}
-
+          ) : (
+            <div className="vault-scroll h-full overflow-y-auto px-4 py-4 sm:px-6">
           {loading ? (
             <div
               data-testid="loading-state"
@@ -2682,6 +2743,8 @@ const Dashboard = ({ session, theme, setTheme }) => {
                   onToggleFav={toggleFav}
                 />
               ))}
+            </div>
+          )}
             </div>
           )}
         </main>
@@ -2765,6 +2828,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
         onApproveAdmin={approveAdmin}
         onRejectAdmin={rejectAdmin}
         onRemoveAdmin={removeAdmin}
+        onToggleAiAccess={toggleAiAccess}
       />
     </div>
   );
