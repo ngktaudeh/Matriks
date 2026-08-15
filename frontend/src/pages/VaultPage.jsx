@@ -8,12 +8,13 @@ import { SearchBar } from "../components/Vault/SearchBar";
 import { SortDropdown } from "../components/Vault/SortDropdown";
 import { ItemList } from "../components/Vault/ItemList";
 import { ItemEditor } from "../components/Vault/ItemEditor";
-import { ImageLightbox } from "../components/Vault/ImageLightbox";
 import { CategoryManager } from "../components/Vault/CategoryManager";
 import { BulkActionsBar } from "../components/Vault/BulkActionsBar";
 import { ChatPanel } from "../components/AI/ChatPanel";
+import { ProfileSettings } from "../components/Auth/ProfileSettings";
 import { Button } from "../components/UI/Button";
 import { useAuth } from "../hooks/useAuth";
+import { useAdmin } from "../hooks/useAdmin";
 import { useItems } from "../hooks/useItems";
 import { useCategories } from "../hooks/useCategories";
 import { useDebounce } from "../hooks/useDebounce";
@@ -22,7 +23,8 @@ import { useRealtime } from "../hooks/useRealtime";
 import { highlightMatch } from "../utils/formatters";
 
 export const VaultPage = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updatePassword } = useAuth();
+  const { isAdmin } = useAdmin(user);
   const { items, loading, fetchItems, addItem, updateItem, toggleFavorite, moveToTrash, bulkMoveToTrash } = useItems(user?.id);
   const { categories, fetchCategories, addCategory, updateCategory, deleteCategory } = useCategories(user?.id);
 
@@ -34,9 +36,9 @@ export const VaultPage = () => {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   const debouncedSearch = useDebounce(search, 300);
   const { copy } = useClipboard();
@@ -187,7 +189,7 @@ export const VaultPage = () => {
             }}
             onAddCategory={() => setShowCategoryManager(true)}
             onOpenTrash={() => window.location.href = "/trash"}
-            onOpenSettings={() => toast.info("Pengaturan akan datang segera")}
+            onOpenSettings={() => setShowSettings(true)}
             onLogout={signOut}
             loading={false}
             itemCounts={itemCounts}
@@ -211,7 +213,7 @@ export const VaultPage = () => {
               setMobileMenuOpen(false);
             }}
             onOpenTrash={() => { window.location.href = "/trash"; setMobileMenuOpen(false); }}
-            onOpenSettings={() => toast.info("Pengaturan akan datang segera")}
+            onOpenSettings={() => { setShowSettings(true); setMobileMenuOpen(false); }}
             onLogout={signOut}
             loading={false}
             itemCounts={itemCounts}
@@ -279,7 +281,6 @@ export const VaultPage = () => {
               onDelete={handleDelete}
               onToggleFavorite={toggleFavorite}
               onCopy={handleCopy}
-              onOpenImage={(url) => setLightboxUrl(url)}
               selectedIds={selectedIds}
               onSelect={handleSelect}
               selectionMode={selectionMode}
@@ -289,19 +290,23 @@ export const VaultPage = () => {
         </main>
       </div>
 
-      {/* Floating Chat Button */}
-      <button
-        onClick={() => setShowChat(!showChat)}
-        className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition-transform hover:scale-110 active:scale-95 dark:bg-white dark:text-slate-900"
-      >
-        <MessageSquare className="h-5 w-5" />
-      </button>
+      {/* Floating Chat Button — hanya admin */}
+      {isAdmin && (
+        <button
+          onClick={() => setShowChat(!showChat)}
+          className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition-transform hover:scale-110 active:scale-95 dark:bg-white dark:text-slate-900"
+        >
+          <MessageSquare className="h-5 w-5" />
+        </button>
+      )}
 
-      <ChatPanel
-        isOpen={showChat}
-        onClose={() => setShowChat(false)}
-        vaultContext={`User memiliki ${items.length} item di vault.`}
-      />
+      {isAdmin && (
+        <ChatPanel
+          isOpen={showChat}
+          onClose={() => setShowChat(false)}
+          vaultContext={`User memiliki ${items.length} item di vault.`}
+        />
+      )}
 
       <ItemEditor
         isOpen={showEditor}
@@ -311,8 +316,6 @@ export const VaultPage = () => {
         categories={categories}
       />
 
-      <ImageLightbox imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />
-
       <CategoryManager
         isOpen={showCategoryManager}
         onClose={() => setShowCategoryManager(false)}
@@ -320,6 +323,15 @@ export const VaultPage = () => {
         onAdd={addCategory}
         onUpdate={updateCategory}
         onDelete={deleteCategory}
+      />
+
+      <ProfileSettings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        user={user}
+        onLogout={signOut}
+        onUpdatePassword={async (pwd) => { await updatePassword(pwd); toast.success("Password diperbarui"); }}
+        onDeleteAccount={async () => { toast.info("Fitur hapus akun dalam pengembangan"); }}
       />
     </div>
   );

@@ -1,14 +1,17 @@
 import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, Shield, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Shield, CheckCircle2, KeyRound } from "lucide-react";
 import { Button } from "../UI/Button";
 import { Input } from "../UI/Input";
 import { APP_NAME } from "../../lib/constants";
 import { isStrongPassword } from "../../utils/validators";
 
+const ACCESS_CODE = "MATRIKS2026"; // Ganti ini kalau mau kode lain
+
 export const SignupForm = ({ onSubmit, onToggleMode, loading, error }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
@@ -18,11 +21,15 @@ export const SignupForm = ({ onSubmit, onToggleMode, loading, error }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (accessCode !== ACCESS_CODE) {
+      alert("Kode akses tidak valid. Hubungi admin untuk mendapatkan kode.");
+      return;
+    }
     if (password !== confirmPassword) return;
     onSubmit(email, password);
   };
 
-  const isValid = email && password && confirmPassword && password === confirmPassword && agreed;
+  const isValid = email && password && confirmPassword && password === confirmPassword && agreed && accessCode;
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -31,7 +38,7 @@ export const SignupForm = ({ onSubmit, onToggleMode, loading, error }) => {
           <Shield className="h-7 w-7 text-white dark:text-slate-900" />
         </div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Buat Akun {APP_NAME}</h1>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Mulai simpan informasi Anda dengan aman</p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Akses vault pribadi — by invitation only</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -68,10 +75,7 @@ export const SignupForm = ({ onSubmit, onToggleMode, loading, error }) => {
           <div className="space-y-1.5">
             <div className="flex gap-1 h-1.5">
               {[0, 1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className={`flex-1 rounded-full transition-colors duration-300 ${i < strength ? strengthColors[strength - 1] : "bg-slate-200 dark:bg-slate-700"}`}
-                />
+                <div key={i} className={`flex-1 rounded-full transition-colors duration-300 ${i < strength ? strengthColors[strength - 1] : "bg-slate-200 dark:bg-slate-700"}`} />
               ))}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -90,6 +94,23 @@ export const SignupForm = ({ onSubmit, onToggleMode, loading, error }) => {
           error={confirmPassword && password !== confirmPassword ? "Password tidak cocok" : ""}
           required
         />
+
+        {/* KODE AKSES — BARU */}
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+          <Input
+            label="Kode Akses"
+            type="text"
+            value={accessCode}
+            onChange={(e) => setAccessCode(e.target.value)}
+            placeholder="Masukkan kode undangan"
+            icon={KeyRound}
+            className="border-amber-300 focus:border-amber-500 dark:border-amber-700"
+            required
+          />
+          <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-400">
+            Pendaftaran hanya untuk yang memiliki kode undangan. Hubungi admin untuk kode akses.
+          </p>
+        </div>
 
         <label className="flex items-start gap-2 cursor-pointer">
           <input
