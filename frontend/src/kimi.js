@@ -128,7 +128,7 @@ export async function tanyaKimi(pertanyaan, category = "design", options = {}) {
   const { temperature = 0.7, model = "moonshot-v1-8k" } = options;
 
   try {
-    const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
+    const response = await fetch("https://api.moonshot.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
