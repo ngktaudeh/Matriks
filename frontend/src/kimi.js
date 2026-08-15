@@ -592,6 +592,98 @@ export const getRandomQuestion = (
 
 
 /* ============================================================
+   FILE / IMAGE SUPPORT
+============================================================ */
+
+/**
+ * Convert a File to a base64 data URL (for image_url content).
+ */
+export async function fileToBase64(
+  file
+) {
+
+  return new Promise(
+    (resolve, reject) => {
+
+      const reader =
+        new FileReader();
+
+      reader.onload =
+        () => resolve(reader.result);
+
+      reader.onerror =
+        reject;
+
+      reader.readAsDataURL(
+        file
+      );
+
+    }
+  );
+
+}
+
+
+/**
+ * Build a user message content that may include image parts.
+ * Non-image files are described by name only (no text extraction).
+ *
+ * @returns {Promise<string | Array>}
+ */
+export async function buildMessageContent(
+  text,
+  files = []
+) {
+
+  const list =
+    Array.isArray(files) ? files : [];
+
+  if (list.length === 0) {
+    return text;
+  }
+
+  const parts = [];
+
+  if (text) {
+    parts.push({
+      type: "text",
+      text,
+    });
+  }
+
+  for (const f of list) {
+
+    const file =
+      f?.file || f;
+
+    const type =
+      f?.type || file?.type || "";
+
+    if (
+      typeof type === "string" &&
+      type.startsWith("image/")
+    ) {
+
+      const base64 =
+        await fileToBase64(file);
+
+      parts.push({
+        type: "image_url",
+        image_url: {
+          url: base64,
+        },
+      });
+
+    }
+
+  }
+
+  return parts.length ? parts : text;
+
+}
+
+
+/* ============================================================
    INTENT RULES
 ============================================================ */
 
@@ -1832,6 +1924,8 @@ export async function tanyaKimi(
 
     extraInstructions = "",
 
+    files = [],
+
   } = options || {};
 
 
@@ -1880,6 +1974,26 @@ export async function tanyaKimi(
 
   /*
    * ----------------------------------------------------------
+   * USER CONTENT (with optional image files)
+   * ----------------------------------------------------------
+   */
+
+  let userContent =
+    question;
+
+  if (files && files.length > 0) {
+
+    userContent =
+      await buildMessageContent(
+        question,
+        files
+      );
+
+  }
+
+
+  /*
+   * ----------------------------------------------------------
    * FINAL MESSAGE ARRAY
    * ----------------------------------------------------------
    */
@@ -1902,7 +2016,7 @@ export async function tanyaKimi(
         "user",
 
       content:
-        question,
+        userContent,
 
     },
 

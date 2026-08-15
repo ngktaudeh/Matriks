@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { supabase, hasSupabaseConfig } from "@/lib/supabaseClient";
-import { tanyaKimi, getRandomQuestion, CATEGORIES } from "./kimi";
+import { tanyaKimi, CATEGORIES } from "./kimi";
 import {
   Search,
   Plus,
@@ -31,6 +31,9 @@ import {
   BadgeCheck,
   KeyRound,
   Sparkles,
+  ArrowLeft,
+  FileText,
+  Send,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -1843,39 +1846,96 @@ const ConfigError = () => (
 /*  Kimi design assistant panel                                        */
 /* ------------------------------------------------------------------ */
 
-const TombolKimi = () => {
-  const [category, setCategory] = useState("cs");
-  const [pertanyaan, setPertanyaan] = useState("");
-  const [messages, setMessages] = useState([]); // [{ role: 'user'|'assistant', content: string }]
-  const [loading, setLoading] = useState(false);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
+/* ------------------------------------------------------------------ */
+/*  Matriks.ai — fullscreen Kimi-style assistant                        */
+/* ------------------------------------------------------------------ */
 
-  // Auto scroll ke bawah setiap ada pesan baru
+const MatriksAIFullscreen = ({ theme, setTheme, onClose, session }) => {
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content: "Halo! Saya Kimi, siap membantu Anda. Apa yang ingin Anda tanyakan hari ini?",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState("cs");
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Auto-scroll ke bawah setiap ada pesan baru
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const kirim = async (teks) => {
-    const finalPertanyaan = (teks ?? pertanyaan).trim();
-    if (!finalPertanyaan || loading) return;
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height =
+        Math.min(textareaRef.current.scrollHeight, 200) + "px";
+    }
+  }, [input]);
 
-    setPertanyaan("");
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    const newFiles = files.map((file) => ({
+      id: Math.random().toString(36).substr(2, 9),
+      file,
+      name: file.name,
+      size: (file.size / 1024 / 1024).toFixed(2) + " MB",
+      type: file.type,
+      preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+    }));
+    setAttachedFiles((prev) => [...prev, ...newFiles]);
+    setShowWelcome(false);
+    e.target.value = "";
+  };
+
+  const removeFile = (id) => {
+    setAttachedFiles((prev) => {
+      const f = prev.find((x) => x.id === id);
+      if (f?.preview) URL.revokeObjectURL(f.preview);
+      return prev.filter((x) => x.id !== id);
+    });
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() && attachedFiles.length === 0) return;
+
+    const userContent = input.trim();
+    let finalContent = userContent;
+
+    // Format pesan dengan info file jika ada
+    if (attachedFiles.length > 0) {
+      const fileNames = attachedFiles.map((f) => `[File: ${f.name}]`).join(", ");
+      finalContent = userContent ? `${userContent}\n\n${fileNames}` : fileNames;
+    }
+
+    const userMessage = {
+      role: "user",
+      content: finalContent,
+      files: attachedFiles,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setAttachedFiles([]);
     setLoading(true);
-
-    // Tambah pesan user dulu
-    setMessages((prev) => [...prev, { role: "user", content: finalPertanyaan }]);
+    setShowWelcome(false);
 
     try {
-      const history = messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      const hasil = await tanyaKimi(finalPertanyaan, category, {
+      const history = messages.map((m) => ({ role: m.role, content: m.content }));
+      const hasil = await tanyaKimi(finalContent, category, {
         history,
         model: "kimi-k3",
         reasoning_effort: "max",
+        files: userMessage.files,
       });
 
       setMessages((prev) => [
@@ -1893,34 +1953,49 @@ const TombolKimi = () => {
     }
   };
 
-  const kejutkanAku = () => {
-    const acak = getRandomQuestion(category);
-    setPertanyaan(acak);
-    kirim(acak);
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
-  const hapusChat = () => {
+  const handleReset = () => {
     if (loading) return;
-    setMessages([]);
-    setPertanyaan("");
+    setMessages([
+      {
+        role: "assistant",
+        content: "Halo! Saya Kimi, siap membantu Anda. Apa yang ingin Anda tanyakan hari ini?",
+      },
+    ]);
+    setInput("");
+    setAttachedFiles([]);
+    setShowWelcome(true);
   };
 
   return (
-    <div
-      data-testid="kimi-panel"
-      className="flex h-full min-h-0 flex-col overflow-hidden"
-    >
+    <div className="flex h-screen w-full flex-col bg-[#f5f5f5] dark:bg-[#1a1a1a]">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white">
-            <Sparkles size={18} />
-          </div>
-          <div>
-            <h3 className="font-sans text-sm font-semibold leading-tight">Matriks.ai</h3>
-            <p className="font-sans text-[11px] text-muted-foreground">
-              {CATEGORIES[category]?.label || "AI Assistant"}
-            </p>
+      <header className="flex items-center justify-between border-b border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-md px-4 sm:px-6 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            data-testid="ai-back-btn"
+            onClick={onClose}
+            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            aria-label="Kembali"
+          >
+            <ArrowLeft size={20} className="text-gray-600 dark:text-gray-300" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600">
+              <Sparkles size={16} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Kimi AI</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Powered by Moonshot AI
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1929,7 +2004,7 @@ const TombolKimi = () => {
             data-testid="kimi-category-select"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="rounded-lg border border-input bg-background px-2.5 py-1.5 font-sans text-xs font-medium outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/30"
+            className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#242424] px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 outline-none transition-colors focus:border-indigo-300 dark:focus:border-indigo-700"
           >
             {Object.entries(CATEGORIES).map(([key, val]) => (
               <option key={key} value={key}>
@@ -1938,120 +2013,273 @@ const TombolKimi = () => {
             ))}
           </select>
 
-          {messages.length > 0 && (
+          {messages.length > 1 && (
             <button
-              onClick={hapusChat}
+              data-testid="ai-reset-btn"
+              onClick={handleReset}
               disabled={loading}
-              className="rounded-lg border border-input px-2.5 py-1.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
-              title="Mulai chat baru"
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-40"
             >
               Baru
             </button>
           )}
-        </div>
-      </div>
 
-      {/* Area pesan */}
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        {messages.length === 0 && !loading && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/15 text-2xl">
-              ✨
-            </div>
-            <div>
-              <p className="font-sans text-sm font-semibold">Ada yang bisa dibantu?</p>
-              <p className="mt-1 max-w-[300px] font-sans text-xs text-muted-foreground">
-                Tanya seputar jawaban CS, desain, kode, strategi SaaS, atau ide visual.
-              </p>
-            </div>
-            <button
-              onClick={kejutkanAku}
-              className="mt-1 rounded-full border border-border bg-background px-4 py-1.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              Kejutkan aku
-            </button>
-          </div>
-        )}
-
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 font-sans text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "rounded-br-md bg-violet-600 text-white"
-                  : "rounded-bl-md border border-border bg-card text-foreground"
-              }`}
-            >
-              <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-            </div>
-          </div>
-        ))}
-
-        {/* Loading bubble */}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-border bg-card px-4 py-3">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" />
-            </div>
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input area */}
-      <div className="border-t border-border p-3">
-        <div className="flex items-end gap-2 rounded-xl border border-input bg-card p-1.5 shadow-sm focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/30">
-          <textarea
-            ref={inputRef}
-            data-testid="kimi-question-input"
-            value={pertanyaan}
-            onChange={(e) => setPertanyaan(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                kirim();
-              }
-            }}
-            placeholder="Tulis pesan… (Enter untuk kirim)"
-            rows={1}
-            className="max-h-28 min-h-[40px] flex-1 resize-none bg-transparent px-2.5 py-2 font-sans text-sm outline-none placeholder:text-muted-foreground"
-          />
           <button
-            data-testid="kimi-ask-btn"
-            onClick={() => kirim()}
-            disabled={loading || !pertanyaan.trim()}
-            className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white transition-all hover:opacity-90 disabled:opacity-40"
-            title="Kirim"
+            data-testid="ai-theme-toggle"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            aria-label="Toggle theme"
           >
-            {loading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="m22 2-7 20-4-9-9-4Z" />
-                <path d="M22 2 11 13" />
-              </svg>
-            )}
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
-        <p className="mt-1.5 text-center font-sans text-[10px] text-muted-foreground">
-          Kimi bisa salah. Periksa kembali hasil penting.
-        </p>
+      </header>
+
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-3xl px-4 py-8">
+          {/* Welcome Screen */}
+          {showWelcome && messages.length <= 1 && (
+            <div className="mt-20 flex flex-col items-center justify-center text-center">
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20">
+                <Sparkles size={32} className="text-white" />
+              </div>
+              <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+                Selamat datang di Kimi
+              </h2>
+              <p className="mb-8 max-w-md text-gray-500 dark:text-gray-400">
+                Asisten AI serba bisa untuk coding, desain, analisis, dan banyak lagi.
+                Mulai percakapan atau upload file.
+              </p>
+
+              <div className="grid w-full max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  "Jelaskan konsep React Hooks",
+                  "Bantu saya debug kode ini",
+                  "Buatkan email profesional",
+                  "Analisis data penjualan",
+                ].map((prompt, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setInput(prompt);
+                      setShowWelcome(false);
+                      setTimeout(() => inputRef.current?.focus(), 0);
+                    }}
+                    className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 text-left text-sm text-gray-700 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Messages */}
+          <div className="space-y-6">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`flex max-w-[85%] items-start gap-3 ${
+                    msg.role === "user" ? "flex-row-reverse" : "flex-row"
+                  }`}
+                >
+                  {/* Avatar */}
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                      msg.role === "user"
+                        ? "bg-indigo-500 text-white"
+                        : "bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      <span className="text-xs font-bold">
+                        {session?.user?.email?.[0]?.toUpperCase() || "U"}
+                      </span>
+                    ) : (
+                      <Sparkles size={14} />
+                    )}
+                  </div>
+
+                  {/* Bubble */}
+                  <div
+                    className={`group relative rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-indigo-500 text-white rounded-br-md"
+                        : "bg-white dark:bg-[#2a2a2a] text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-bl-md shadow-sm"
+                    }`}
+                  >
+                    {/* File attachments display */}
+                    {msg.files && msg.files.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {msg.files.map((file) => (
+                          <div
+                            key={file.id}
+                            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
+                              msg.role === "user"
+                                ? "bg-indigo-400/30"
+                                : "bg-gray-100 dark:bg-gray-700"
+                            }`}
+                          >
+                            {file.preview ? (
+                              <img
+                                src={file.preview}
+                                alt=""
+                                className="h-8 w-8 rounded object-cover"
+                              />
+                            ) : (
+                              <FileText size={14} />
+                            )}
+                            <span className="truncate max-w-[120px]">{file.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+
+                    {/* Copy button untuk pesan AI */}
+                    {msg.role === "assistant" && (
+                      <button
+                        onClick={() => writeClipboard(msg.content)}
+                        className="absolute -bottom-6 left-0 opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-500 hover:text-indigo-500 flex items-center gap-1"
+                      >
+                        <Copy size={12} /> Salin
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Loading indicator */}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600">
+                    <Sparkles size={14} className="text-white" />
+                  </div>
+                  <div className="rounded-2xl rounded-bl-md bg-white dark:bg-[#2a2a2a] border border-gray-100 dark:border-gray-700 px-4 py-3 shadow-sm">
+                    <div className="flex gap-1">
+                      <div
+                        className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      />
+                      <div
+                        className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      />
+                      <div
+                        className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+      </div>
+
+      {/* Input Area */}
+      <div className="border-t border-gray-200/50 dark:border-gray-800/50 bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-md px-4 py-4">
+        <div className="mx-auto max-w-3xl">
+          {/* File attachments preview */}
+          {attachedFiles.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {attachedFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2 text-xs"
+                >
+                  {file.preview ? (
+                    <img
+                      src={file.preview}
+                      alt=""
+                      className="h-10 w-10 rounded object-cover"
+                    />
+                  ) : (
+                    <FileText size={16} className="text-gray-500" />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="font-medium text-gray-700 dark:text-gray-300 max-w-[150px] truncate">
+                      {file.name}
+                    </span>
+                    <span className="text-gray-400">{file.size}</span>
+                  </div>
+                  <button
+                    onClick={() => removeFile(file.id)}
+                    className="ml-1 rounded-full p-1 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    aria-label="Hapus file"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="relative flex items-end gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#242424] p-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-300 dark:focus-within:border-indigo-700 transition-all">
+            {/* Upload button */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              multiple
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
+              title="Upload gambar atau file"
+            >
+              <Plus size={20} />
+            </button>
+
+            {/* Textarea */}
+            <textarea
+              ref={(el) => {
+                textareaRef.current = el;
+                inputRef.current = el;
+              }}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Tanyakan apa saja, atau upload file..."
+              rows={1}
+              className="flex-1 resize-none bg-transparent px-2 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none max-h-[200px]"
+            />
+
+            {/* Send Button */}
+            <button
+              data-testid="kimi-ask-btn"
+              onClick={handleSend}
+              disabled={(!input.trim() && attachedFiles.length === 0) || loading}
+              className={`mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all ${
+                (input.trim() || attachedFiles.length > 0) && !loading
+                  ? "bg-indigo-500 text-white hover:bg-indigo-600 shadow-md"
+                  : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600"
+              }`}
+              title="Kirim"
+            >
+              {loading ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Send size={18} />
+              )}
+            </button>
+          </div>
+
+          <p className="mt-2 text-center text-xs text-gray-400">
+            AI dapat membuat kesalahan. Verifikasi informasi penting.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -2578,7 +2806,19 @@ const Dashboard = ({ session, theme, setTheme }) => {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background font-sans text-foreground">
+    <>
+      {matrixOpen && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <MatriksAIFullscreen
+            theme={theme}
+            setTheme={setTheme}
+            onClose={() => setMatrixOpen(false)}
+            session={session}
+          />
+        </div>
+      )}
+
+      <div className="flex h-screen w-full overflow-hidden bg-background font-sans text-foreground">
       <aside className="hidden w-72 shrink-0 border-r border-border md:block">
         <Sidebar {...sidebarProps} />
       </aside>
@@ -2697,12 +2937,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
         </div>
 
         <main className="min-h-0 flex-1 overflow-hidden">
-          {matrixOpen ? (
-            <div className="h-full">
-              <TombolKimi />
-            </div>
-          ) : (
-            <div className="vault-scroll h-full overflow-y-auto px-4 py-4 sm:px-6">
+          <div className="vault-scroll h-full overflow-y-auto px-4 py-4 sm:px-6">
           {loading ? (
             <div
               data-testid="loading-state"
@@ -2745,8 +2980,7 @@ const Dashboard = ({ session, theme, setTheme }) => {
               ))}
             </div>
           )}
-            </div>
-          )}
+          </div>
         </main>
       </div>
 
@@ -2830,7 +3064,8 @@ const Dashboard = ({ session, theme, setTheme }) => {
         onRemoveAdmin={removeAdmin}
         onToggleAiAccess={toggleAiAccess}
       />
-    </div>
+      </div>
+    </>
   );
 };
 
