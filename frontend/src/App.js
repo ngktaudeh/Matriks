@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { supabase, hasSupabaseConfig } from "@/lib/supabaseClient";
+import { tanyaKimi } from "./kimi";
 import {
   Search,
   Plus,
@@ -1804,6 +1805,55 @@ const ConfigError = () => (
 );
 
 /* ------------------------------------------------------------------ */
+/*  Kimi design assistant panel                                        */
+/* ------------------------------------------------------------------ */
+
+const TombolKimi = () => {
+  const [jawaban, setJawaban] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const mintaSaran = async () => {
+    setLoading(true);
+    setJawaban("");
+    // Ganti teks di bawah ini dengan pertanyaan desain apa saja
+    const hasil = await tanyaKimi(
+      "Berikan saya palet warna hex code yang modern untuk dashboard SaaS bertema penyimpanan data rahasia!"
+    );
+    setJawaban(hasil);
+    setLoading(false);
+  };
+
+  return (
+    <div
+      data-testid="kimi-panel"
+      className="rounded-xl border border-border bg-card p-4 shadow-sm"
+    >
+      <h3 className="font-sans text-sm font-semibold">🤖 Asisten Desain Kimi</h3>
+      <button
+        data-testid="kimi-ask-btn"
+        onClick={mintaSaran}
+        disabled={loading}
+        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-150 hover:opacity-90 disabled:opacity-40"
+      >
+        {loading && <Loader2 size={15} className="animate-spin" />}
+        {loading ? "Kimi sedang mikir..." : "Tanya Saran Desain"}
+      </button>
+
+      {jawaban && (
+        <div
+          data-testid="kimi-answer"
+          className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-background p-3 font-sans text-sm"
+        >
+          <strong>Jawaban Kimi:</strong>
+          <br />
+          {jawaban}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /*  Dashboard                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -2423,6 +2473,12 @@ const Dashboard = ({ session, theme, setTheme }) => {
         </div>
 
         <main className="vault-scroll flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+          {isAdmin && (
+            <div className="mb-4">
+              <TombolKimi />
+            </div>
+          )}
+
           {loading ? (
             <div
               data-testid="loading-state"
