@@ -346,6 +346,9 @@ export const VaultPage = () => {
           if (error) toast.error(error.message || "Gagal memperbarui password");
           else toast.success("Password diperbarui");
         }}
+        onDeleteAccount={async () => {
+          toast.info("Fitur hapus akun dalam pengembangan");
+        }}
       />
 
       <ConfirmDialog
