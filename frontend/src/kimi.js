@@ -111,7 +111,7 @@ export const getRandomQuestion = (category = "random") => {
  *   "code", "saas", "gambar", "random"). Default: "design".
  * @param {object} [options] - opsi tambahan (opsional)
  * @param {number} [options.temperature=0.7]
- * @param {string} [options.model="moonshot-v1-8k"]
+ * @param {string} [options.model="kimi-k3"]
  * @returns {Promise<string>} jawaban teks dari Kimi (atau pesan error)
  */
 export async function tanyaKimi(pertanyaan, category = "design", options = {}) {
@@ -125,7 +125,7 @@ export async function tanyaKimi(pertanyaan, category = "design", options = {}) {
   }
 
   const preset = CATEGORIES[category] || CATEGORIES.design;
-  const { temperature = 0.7, model = "moonshot-v1-8k" } = options;
+  const { temperature = 0.7, model = "kimi-k3" } = options;
 
   try {
     const response = await fetch("https://api.moonshot.ai/v1/chat/completions", {
