@@ -1,0 +1,349 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useLocalStorage } from "./useLocalStorage";
+
+const LOCAL_THREADS_KEY = "matriks-chat-threads";
+const LOCAL_ACTIVE_KEY = "matriks-chat-active-thread";
+
+/**
+ * Multi-thread chat history.
+ * Prefer Supabase (chat_threads / chat_messages) bila tersedia;
+ * fallback ke localStorage agar tetap jalan tanpa migrasi.
+ */
+export const useChat = (userId) => {
+  const [localThreads, setLocalThreads] = useLocalStorage(LOCAL_THREADS_KEY, []);
+  const [activeId, setActiveId] = useLocalStorage(LOCAL_ACTIVE_KEY, null);
+  const [threads, setThreads] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [useDb, setUseDb] = useState(false);
+  const abortRef = useRef(null);
+
+  // ---- Load threads ----
+  const loadThreads = useCallback(async () => {
+    if (!userId) {
+      setThreads([]);
+      setLoading(false);
+      return;
+    }
+    if (!supabase) {
+      setThreads(localThreads);
+      setUseDb(false);
+      setLoading(false);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from("chat_threads")
+        .select("id, title, created_at, updated_at")
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      setThreads(data || []);
+      setUseDb(true);
+      if (data?.length && !activeId) setActiveId(data[0].id);
+      if (data?.length && activeId && !data.find((t) => t.id === activeId)) {
+        setActiveId(data[0].id);
+      }
+    } catch {
+      // Tabel belum ada / RLS — pakai localStorage
+      setThreads(localThreads);
+      setUseDb(false);
+      if (localThreads.length && !activeId) setActiveId(localThreads[0].id);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, localThreads, activeId, setActiveId]);
+
+  useEffect(() => {
+    loadThreads();
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Load messages for active thread ----
+  const loadMessages = useCallback(async (threadId) => {
+    if (!threadId) {
+      setMessages([]);
+      return;
+    }
+    if (useDb && supabase) {
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select("id, role, content, is_error, created_at")
+        .eq("thread_id", threadId)
+        .order("created_at", { ascending: true });
+      if (!error) {
+        setMessages(
+          (data || []).map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            isError: m.is_error,
+            timestamp: m.created_at,
+          }))
+        );
+        return;
+      }
+    }
+    // localStorage fallback
+    const t = localThreads.find((x) => x.id === threadId);
+    setMessages(t?.messages || []);
+  }, [useDb, localThreads]);
+
+  useEffect(() => {
+    loadMessages(activeId);
+  }, [activeId, loadMessages]);
+
+  // ---- Create thread ----
+  const createThread = useCallback(
+    async (title = "Percakapan baru") => {
+      if (useDb && supabase && userId) {
+        const { data, error } = await supabase
+          .from("chat_threads")
+          .insert([{ user_id: userId, title }])
+          .select()
+          .single();
+        if (!error && data) {
+          setThreads((prev) => [data, ...prev]);
+          setActiveId(data.id);
+          setMessages([]);
+          return data.id;
+        }
+      }
+      const id = `local-${Date.now()}`;
+      const thread = {
+        id,
+        title,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        messages: [],
+      };
+      const next = [thread, ...localThreads];
+      setLocalThreads(next);
+      setThreads(next);
+      setActiveId(id);
+      setMessages([]);
+      return id;
+    },
+    [useDb, userId, localThreads, setLocalThreads, setActiveId]
+  );
+
+  // ---- Rename thread ----
+  const renameThread = useCallback(
+    async (threadId, title) => {
+      if (useDb && supabase) {
+        await supabase.from("chat_threads").update({ title }).eq("id", threadId);
+      }
+      setThreads((prev) => prev.map((t) => (t.id === threadId ? { ...t, title } : t)));
+      if (!useDb) {
+        setLocalThreads((prev) =>
+          prev.map((t) => (t.id === threadId ? { ...t, title } : t))
+        );
+      }
+    },
+    [useDb, setLocalThreads]
+  );
+
+  // ---- Delete thread ----
+  const deleteThread = useCallback(
+    async (threadId) => {
+      if (useDb && supabase) {
+        await supabase.from("chat_threads").delete().eq("id", threadId);
+      }
+      const next = threads.filter((t) => t.id !== threadId);
+      setThreads(next);
+      if (!useDb) {
+        const localNext = localThreads.filter((t) => t.id !== threadId);
+        setLocalThreads(localNext);
+      }
+      if (activeId === threadId) {
+        const fallback = next[0]?.id || null;
+        setActiveId(fallback);
+        if (!fallback) setMessages([]);
+      }
+    },
+    [useDb, threads, localThreads, activeId, setLocalThreads, setActiveId]
+  );
+
+  // ---- Append message (local optimistic + persist) ----
+  const appendMessage = useCallback(
+    async (msg) => {
+      const withId = {
+        id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        role: msg.role,
+        content: msg.content || "",
+        isError: !!msg.isError,
+        timestamp: msg.timestamp || new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, withId]);
+
+      let threadId = activeId;
+      if (!threadId) {
+        threadId = await createThread(
+          msg.role === "user" ? msg.content.slice(0, 48) || "Percakapan baru" : "Percakapan baru"
+        );
+      }
+
+      if (useDb && supabase && userId && threadId) {
+        // Jangan persist placeholder assistant kosong (streaming) — dipersist di persistAssistantMessage
+        const skipDb = withId.role === "assistant" && !withId.content && !withId.isError;
+        if (!skipDb) {
+          await supabase.from("chat_messages").insert([
+            {
+              thread_id: threadId,
+              user_id: userId,
+              role: withId.role,
+              content: withId.content,
+              is_error: withId.isError,
+            },
+          ]);
+        }
+        // Auto-title dari pesan user pertama
+        if (msg.role === "user") {
+          const t = threads.find((x) => x.id === threadId);
+          if (t && (t.title === "Percakapan baru" || !t.title)) {
+            const title = msg.content.slice(0, 48) + (msg.content.length > 48 ? "…" : "");
+            await renameThread(threadId, title);
+          }
+        }
+      } else if (threadId) {
+        setLocalThreads((prev) =>
+          prev.map((t) => {
+            if (t.id !== threadId) return t;
+            const msgs = [...(t.messages || []), withId];
+            const title =
+              t.title === "Percakapan baru" && msg.role === "user"
+                ? msg.content.slice(0, 48) + (msg.content.length > 48 ? "…" : "")
+                : t.title;
+            return { ...t, messages: msgs, title, updated_at: new Date().toISOString() };
+          })
+        );
+        setThreads((prev) =>
+          prev.map((t) => {
+            if (t.id !== threadId) return t;
+            const title =
+              t.title === "Percakapan baru" && msg.role === "user"
+                ? msg.content.slice(0, 48) + (msg.content.length > 48 ? "…" : "")
+                : t.title;
+            return { ...t, title, updated_at: new Date().toISOString() };
+          })
+        );
+      }
+      return withId;
+    },
+    [activeId, useDb, userId, threads, createThread, renameThread, setLocalThreads]
+  );
+
+  // ---- Update last assistant message content (streaming) ----
+  const updateMessageContent = useCallback(
+    (msgId, content) => {
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content } : m)));
+      if (!useDb && activeId) {
+        setLocalThreads((prev) =>
+          prev.map((t) => {
+            if (t.id !== activeId) return t;
+            return {
+              ...t,
+              messages: (t.messages || []).map((m) =>
+                m.id === msgId ? { ...m, content } : m
+              ),
+              updated_at: new Date().toISOString(),
+            };
+          })
+        );
+      }
+    },
+    [useDb, activeId, setLocalThreads]
+  );
+
+  // ---- Persist final assistant message to DB after stream ----
+  const persistAssistantMessage = useCallback(
+    async (msgId, content, isError = false) => {
+      if (!useDb || !supabase || !userId || !activeId) return;
+      // Cek apakah sudah ada (streaming hanya update lokal)
+      await supabase.from("chat_messages").insert([
+        {
+          thread_id: activeId,
+          user_id: userId,
+          role: "assistant",
+          content,
+          is_error: isError,
+        },
+      ]);
+    },
+    [useDb, userId, activeId]
+  );
+
+  // ---- Clear all messages in active thread ----
+  const clearMessages = useCallback(async () => {
+    if (!activeId) return;
+    if (useDb && supabase) {
+      await supabase.from("chat_messages").delete().eq("thread_id", activeId);
+    }
+    setMessages([]);
+    if (!useDb) {
+      setLocalThreads((prev) =>
+        prev.map((t) => (t.id === activeId ? { ...t, messages: [] } : t))
+      );
+    }
+  }, [activeId, useDb, setLocalThreads]);
+
+  return {
+    threads,
+    activeId,
+    setActiveId,
+    messages,
+    setMessages,
+    loading,
+    useDb,
+    createThread,
+    renameThread,
+    deleteThread,
+    appendMessage,
+    updateMessageContent,
+    persistAssistantMessage,
+    clearMessages,
+    abortRef,
+    reload: loadThreads,
+  };
+};
+
+/**
+ * Bangun ringkasan konteks vault untuk system prompt AI.
+ */
+export const buildVaultContext = (items = [], categories = []) => {
+  if (!items.length) {
+    return "Vault user saat ini kosong (belum ada item).";
+  }
+  const byCat = {};
+  items.forEach((it) => {
+    const c = it.category || "Uncategorized";
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(it);
+  });
+
+  const lines = [
+    `Total item: ${items.length}. Kategori: ${categories.map((c) => c.name || c).join(", ") || Object.keys(byCat).join(", ")}.`,
+    "Daftar item (ringkas):",
+  ];
+
+  // Batasi agar tidak meledak token (~80 item max, content dipotong)
+  const maxItems = 80;
+  let count = 0;
+  for (const [cat, list] of Object.entries(byCat)) {
+    lines.push(`\n## ${cat} (${list.length})`);
+    for (const it of list) {
+      if (count >= maxItems) {
+        lines.push(`… dan ${items.length - maxItems} item lainnya.`);
+        return lines.join("\n");
+      }
+      const tags = it.tags?.length ? ` [${it.tags.join(", ")}]` : "";
+      const fav = it.favorite ? " ★" : "";
+      const contentPreview = (it.content || "")
+        .replace(/\s+/g, " ")
+        .slice(0, 180);
+      lines.push(`- ${it.title}${fav}${tags}: ${contentPreview}`);
+      count++;
+    }
+  }
+  return lines.join("\n");
+};

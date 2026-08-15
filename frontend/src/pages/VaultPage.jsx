@@ -28,8 +28,9 @@ export const VaultPage = () => {
   const { canUseAI } = useAdmin(user);
   const {
     items, loading, fetchItems, addItem, updateItem,
-    toggleFavorite, permanentDelete, bulkDelete,
+    toggleFavorite, moveToTrash, bulkMoveToTrash,
   } = useItems(user?.id);
+  const { items: trashItems } = useItems(user?.id, "trash");
   const { categories, fetchCategories, addCategory, updateCategory, deleteCategory } = useCategories(user?.id);
 
   const [search, setSearch] = useState("");
@@ -126,7 +127,7 @@ export const VaultPage = () => {
     }
   };
 
-  // Hapus permanen (TIDAK masuk Tempat Sampah) — dengan konfirmasi.
+  // Soft delete → Tempat Sampah (default). Permanent delete hanya dari TrashPage.
   const requestDelete = (id) => setConfirmDelete({ type: "single", id });
   const requestBulkDelete = () => setConfirmDelete({ type: "bulk", ids: selectedIds });
 
@@ -134,14 +135,14 @@ export const VaultPage = () => {
     if (!confirmDelete) return;
     setDeleting(true);
     if (confirmDelete.type === "single") {
-      const { error } = await permanentDelete(confirmDelete.id);
+      const { error } = await moveToTrash(confirmDelete.id);
       if (error) toast.error(error.message || "Gagal menghapus");
-      else toast.success("Item dihapus permanen");
+      else toast.success("Item dipindah ke Tempat Sampah");
     } else {
       const ids = confirmDelete.ids || [];
-      const { error } = await bulkDelete(ids);
+      const { error } = await bulkMoveToTrash(ids);
       if (error) toast.error(error.message || "Gagal menghapus");
-      else toast.success(`${ids.length} item dihapus permanen`);
+      else toast.success(`${ids.length} item dipindah ke Tempat Sampah`);
       setSelectedIds([]);
       setSelectionMode(false);
     }
@@ -212,7 +213,7 @@ export const VaultPage = () => {
             loading={false}
             itemCounts={itemCounts}
             favoritesCount={favoritesCount}
-            trashCount={0}
+            trashCount={trashItems?.length || 0}
           />
         </div>
 
@@ -236,7 +237,7 @@ export const VaultPage = () => {
             loading={false}
             itemCounts={itemCounts}
             favoritesCount={favoritesCount}
-            trashCount={0}
+            trashCount={trashItems?.length || 0}
           />
         </MobileDrawer>
 
@@ -356,10 +357,10 @@ export const VaultPage = () => {
         title="Hapus Item"
         message={
           confirmDelete?.type === "bulk"
-            ? `Yakin ingin menghapus ${confirmDelete?.ids?.length || 0} item secara permanen? Tindakan ini TIDAK bisa dibatalkan dan item TIDAK masuk ke Tempat Sampah.`
-            : "Yakin ingin menghapus item ini secara permanen? Tindakan ini TIDAK bisa dibatalkan dan item TIDAK masuk ke Tempat Sampah."
+            ? `Pindahkan ${confirmDelete?.ids?.length || 0} item ke Tempat Sampah? Anda masih bisa memulihkannya nanti.`
+            : "Pindahkan item ini ke Tempat Sampah? Anda masih bisa memulihkannya nanti."
         }
-        confirmLabel="Hapus Permanen"
+        confirmLabel="Pindah ke Sampah"
         loading={deleting}
         onConfirm={doDelete}
         onCancel={() => setConfirmDelete(null)}

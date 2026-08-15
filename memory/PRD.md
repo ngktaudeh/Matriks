@@ -1,41 +1,35 @@
-# Knowledge Vault — PRD
+# Knowledge Vault + Matriks AI — PRD
 
 ## Problem Statement
-A SaaS dashboard to store large amounts of copy-ready, editable information (credentials, notes, links, snippets). Migrated data layer to Supabase so each user's data is private, persistent, synced across devices, and protected by Row Level Security.
+A SaaS dashboard to store large amounts of copy-ready, editable information (credentials, notes, links, snippets), with a vault-aware AI assistant.
 
 ## Architecture (current)
-- **Frontend**: React (craco) + Tailwind. Single app in `/app/frontend/src/App.js`.
-- **Data layer**: 100% Supabase (Postgres + Auth + RLS + Realtime) via `@supabase/supabase-js@2.45.4`. Client in `/app/frontend/src/lib/supabaseClient.js`.
-- **Auth**: Supabase email+password. Auth gate in `App()`; `Dashboard()` after login.
-- **Backend**: `/app/backend/server.py` reduced to a health-check stub only (no data). MongoDB/motor data routes removed.
-- **Schema/RLS**: `/app/supabase/migrations/0001_init.sql` (tables `items`, `categories`, updated_at trigger, unique (user_id, lower(name)), RLS policies `auth.uid() = user_id`, realtime publication).
-- Env: `REACT_APP_SUPABASE_URL`, `REACT_APP_SUPABASE_ANON_KEY` (+ `.env.example`). Theme stays in localStorage.
+- **Frontend**: React 19 + Tailwind + craco, modular pages/components/hooks
+- **Data layer**: Supabase (Postgres + Auth + RLS + Realtime)
+- **AI**: Kimi/Moonshot via optional Edge Function proxy; multi-thread chat; vault context injection
+- **Backend**: health-check only (no app data)
 
-## Core Requirements (static)
-- Auth (login/signup/logout, session sync via onAuthStateChange)
-- Per-user data isolation via RLS (verified: User B cannot read/delete User A rows)
-- Full CRUD for items + categories via supabase client
-- Copy w/ feedback, real-time search, sorting, favorites
-- Realtime sync across tabs/devices
-- Export/Import JSON, styled New Category modal, "All excludes Archive" tooltip
-- Error toasts (sonner), config-error screen if env missing
-- Responsive drawer, dark/light, Avenir/Garamond typography
+## Core Requirements
+- Auth (login/signup/logout, password reset)
+- Per-user RLS isolation
+- CRUD items + categories, soft delete / trash
+- Search, sort, favorites, images, export/import
+- Matriks AI: streaming, markdown, multi-thread, vault-aware system prompt, stop/regenerate, suggested prompts
+- Admin gate for AI (`admins.ai_access`)
 
-## Implemented (2026-06)
-- Full Supabase migration; RLS proven via REST (A/B isolation) and UI signup shows empty per-user vault
-- All 17 UI flows passed (testing agent iteration_3); duplicate-category key warning fixed via defensive de-dupe in `categories` memo
-- README with real setup steps; SQL migration file included and already applied to the live project
+## Implemented
+- Full Supabase migration + modular frontend refactor
+- Image upload + lightbox
+- Trash / soft delete as default from Vault
+- Chat threads schema (`0009_chat_threads.sql`)
+- useChat (DB + localStorage fallback)
+- AIPage rewrite (sidebar, markdown, context, stop, regenerate, prompts)
+- Edge Function template `supabase/functions/ai-chat`
 
-## Implemented (2026-06) — Editable categories
-- Categories are now data-driven from the `categories` table (defaults Credentials/Notes/Links seeded per user on first load). All/Favorites/Archive are system (non-editable).
-- Right-click a category (or hover ⋯) → context menu Rename / Delete (`/app/frontend/src/App.js`: Sidebar context menu, `renameCategory`, `deleteCategory`, `RenameCategoryModal`, `ConfirmCategoryDelete`).
-- Rename updates the category row AND all items with that category (items follow). Delete moves items to Archive (never deletes item data). Verified live via browser.
-
-## Backlog (P1/P2)
-- P2: Undo on favorite/delete
-- P2: Password reset / magic link
-- P2: Error boundary around Dashboard
-- P2: Optimistic realtime merge (currently refetch on change)
-
-## Removed
-- FastAPI/MongoDB data routes, motor usage, custom auth — replaced entirely by Supabase.
+## Backlog
+- Function calling (search/create/update items from AI)
+- Optimistic realtime merge
+- PWA / offline
+- Field-level encryption UX for sensitive items
+- Model selector UI
+- Attachment in chat

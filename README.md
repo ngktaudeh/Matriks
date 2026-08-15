@@ -1,51 +1,72 @@
-# Knowledge Vault
+# Matriks — Knowledge Vault + AI
 
-A minimal, polished SaaS dashboard to store large amounts of information you can **copy** and **edit** with ease — credentials, notes, links, snippets. Each user's data is private, synced across devices in real time, and protected by Postgres Row Level Security.
+A minimal, polished SaaS dashboard to store large amounts of information you can **copy** and **edit** with ease — credentials, notes, links, snippets — plus a **vault-aware AI chat** (Matriks AI).
 
-The data layer is **100% Supabase** (Postgres + Auth + RLS + Realtime). There is **no custom backend server** — the React frontend talks to Supabase directly via `@supabase/supabase-js`.
+Each user's data is private, synced across devices in real time, and protected by Postgres Row Level Security.
+
+The data layer is **100% Supabase** (Postgres + Auth + RLS + Realtime). There is **no custom backend server** for vault data — the React frontend talks to Supabase directly via `@supabase/supabase-js`.
+
+AI chat can call Kimi/Moonshot either:
+- **Recommended:** via Supabase Edge Function (`supabase/functions/ai-chat`) so the API key never ships to the browser
+- **Dev only:** `REACT_APP_KIMI_API_KEY` in frontend `.env` (not safe for production)
 
 ---
 
 ## Features
 
-- Email + password auth (Supabase Auth) with login / signup / logout
+### Vault
+- Email + password auth (Supabase Auth) with login / signup / logout / password reset
 - Full CRUD for items, categories, move between categories
+- Soft delete → **Tempat Sampah** (restore / permanent delete)
 - One-click copy to clipboard with visual feedback
-- Real-time search (title + content + tags), sorting (Newest / A–Z / Favorites first)
-- Per-item favorite toggle
-- Realtime sync — changes appear live across tabs/devices for the same user
+- Real-time search (title + content + tags), sorting (Newest / A–Z / Favorites / Updated)
+- Per-item favorite toggle, bulk select
+- Image upload (compress → Supabase Storage) + lightbox
+- Password generator, item templates
+- Realtime sync across tabs/devices
 - Export vault to JSON / import from JSON
 - Dark / light mode, fully responsive (sidebar → drawer below 768px)
-- Avenir (UI chrome) + EB Garamond (body/content) typography
+
+### Matriks AI (`/ai`, shortcut **Ctrl+B**)
+- **Vault-aware**: system prompt includes a live summary of the user's items
+- **Multi-thread** chat history (sidebar: new / rename / delete)
+- Persistence to Supabase (`chat_threads` / `chat_messages`) with localStorage fallback
+- Streaming responses, **stop generation**, **regenerate**
+- Markdown rendering (headings, lists, code blocks, links)
+- Suggested prompt chips on empty state
+- Access gated by `admins.ai_access` (owner always allowed)
+- Optional secure proxy via Edge Function
 
 ---
 
-## 1. Create a Supabase project
+## Setup
 
-1. Go to <https://supabase.com/dashboard> and create a new project.
+### 1. Create a Supabase project
+1. Go to https://supabase.com/dashboard and create a new project.
 2. Wait for it to finish provisioning.
 
-## 2. Run the database migration
+### 2. Run database migrations
+In **SQL Editor → New query**, run (in order or use the consolidated file):
 
-1. In the Supabase Dashboard, open **SQL Editor → New query**.
-2. Paste the entire contents of [`supabase/migrations/0001_init.sql`](./supabase/migrations/0001_init.sql).
-3. Click **Run**.
+- `supabase/migrations/0001_init.sql`
+- `supabase/migrations/0002_item_image_subtitle.sql`
+- `supabase/migrations/0003_bank_jawaban_cs.sql`
+- `supabase/migrations/0004_multi_admin.sql`
+- `supabase/migrations/0005_admin_ai_access.sql`
+- `supabase/migrations/0007_trash_and_templates.sql`
+- `supabase/migrations/0008_app_settings.sql`
+- **`supabase/migrations/0009_chat_threads.sql`** ← AI chat history
 
-This creates the `items` and `categories` tables, the `updated_at` trigger, the case-insensitive unique category constraint, **enables Row Level Security with per-user policies**, and adds both tables to the Realtime publication.
+Or paste `supabase/migrations/9999_consolidated_setup.sql` if you maintain one.
 
-## 3. Get your API keys
+Also create Storage bucket **`item-images`** (public read) for image uploads.
 
-In the Supabase Dashboard: **Project Settings → API**
+### 3. API keys
+**Project Settings → API**
+- Project URL → `REACT_APP_SUPABASE_URL`
+- anon public key → `REACT_APP_SUPABASE_ANON_KEY`
 
-- **Project URL** → `REACT_APP_SUPABASE_URL`
-- **anon public** (a.k.a. publishable) key → `REACT_APP_SUPABASE_ANON_KEY`
-
-> Never use or expose the `service_role` key in the frontend — it bypasses RLS.
-
-## 4. Configure environment variables
-
-Copy the example file and fill it in:
-
+### 4. Environment variables
 ```bash
 cp frontend/.env.example frontend/.env
 ```
@@ -53,45 +74,30 @@ cp frontend/.env.example frontend/.env
 ```env
 REACT_APP_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 REACT_APP_SUPABASE_ANON_KEY=your-anon-public-key
+
+# AI — production: proxy (recommended)
+REACT_APP_AI_PROXY_URL=https://YOUR-PROJECT.supabase.co/functions/v1/ai-chat
+
+# AI — development only (exposes key in browser)
+# REACT_APP_KIMI_API_KEY=sk-...
+REACT_APP_AI_MODEL=kimi-k3
 ```
 
-If these are missing, the app shows a clear full-screen "Supabase is not configured" message instead of crashing.
+### 5. Deploy AI Edge Function (recommended)
+```bash
+# from repo root, with Supabase CLI logged in
+supabase secrets set KIMI_API_KEY=sk-your-moonshot-key
+supabase functions deploy ai-chat
+```
 
-## 5. Run locally
-
+### 6. Run locally
 ```bash
 cd frontend
 yarn install
 yarn start
 ```
 
-Open the app, **sign up** with an email + password, and start adding items.
-
-> Depending on your Supabase project's Auth settings, signup may require email confirmation. You can disable "Confirm email" under **Authentication → Providers → Email** for faster local testing.
-
----
-
-## How data isolation works (RLS)
-
-Row Level Security is enabled on both tables. Every policy checks `auth.uid() = user_id`, so:
-
-- A logged-in user can only `SELECT / INSERT / UPDATE / DELETE` **their own** rows.
-- No row is publicly readable or writable.
-- The frontend never filters by `user_id` in queries — RLS enforces ownership on the server. The app only sets `user_id` on insert.
-
-You can verify: create items with User A, log out, sign up as User B — User B sees an empty vault.
-
----
-
-## What was removed (and why)
-
-The previous version used a **FastAPI + MongoDB** backend (`/api/items`, `/api/categories`). That has been retired:
-
-- **MongoDB / `motor` data routes removed** — Supabase Postgres is now the single source of truth.
-- **No custom auth** — replaced by Supabase Auth (secure, managed, with RLS integration).
-- `backend/server.py` is reduced to a tiny health-check endpoint only, so the process/container stays healthy in this hosting environment. It stores and serves **no application data**.
-
-The result: less code to maintain, real authentication, per-user data isolation enforced at the database level, and live multi-device sync — all without running a custom server.
+Sign up, then grant AI access via the `admins` table (`ai_access = true`) or use the owner email.
 
 ---
 
@@ -100,11 +106,41 @@ The result: less code to maintain, real authentication, per-user data isolation 
 ```
 frontend/
   src/
-    App.js                  # entire UI + Supabase data layer + auth gate
-    lib/supabaseClient.js   # single Supabase client init
-  .env.example              # REACT_APP_SUPABASE_URL / _ANON_KEY
+    App.jsx
+    pages/
+      VaultPage.jsx
+      AIPage.jsx          # Matriks AI (multi-thread, vault context, markdown)
+      TrashPage.jsx
+      LoginPage.jsx
+      ResetPasswordPage.jsx
+    components/
+      AI/                # ChatMessage, ChatSidebar, SuggestedPrompts, MarkdownContent
+      Vault/
+      Auth/
+      Layout/
+      UI/
+    hooks/
+      useChat.js         # threads + messages (DB + localStorage fallback)
+      useItems.js
+      useAdmin.js
+      ...
+    utils/
+      markdown.js        # lightweight MD → HTML
 supabase/
-  migrations/0001_init.sql  # tables, triggers, RLS policies, realtime
-backend/
-  server.py                 # health-check only (no data layer)
+  migrations/
+    0009_chat_threads.sql
+  functions/
+    ai-chat/index.ts     # secure API proxy
 ```
+
+---
+
+## How data isolation works (RLS)
+
+Row Level Security is enabled on items, categories, chat tables, etc. Policies check `auth.uid() = user_id`.
+
+---
+
+## Live
+
+[matriks-rouge.vercel.app](https://matriks-rouge.vercel.app)
