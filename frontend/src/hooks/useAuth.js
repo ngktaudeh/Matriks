@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, hasSupabaseConfig } from "../lib/supabaseClient";
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -9,6 +9,15 @@ export const useAuth = () => {
 
   useEffect(() => {
     let mounted = true;
+
+    // Tanpa konfigurasi Supabase, jangan coba akses auth (hindari crash).
+    if (!hasSupabaseConfig || !supabase) {
+      setError(
+        "Konfigurasi Supabase belum lengkap. Isi frontend/.env lalu rebuild."
+      );
+      setLoading(false);
+      return;
+    }
 
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -38,6 +47,7 @@ export const useAuth = () => {
   }, []);
 
   const signUp = useCallback(async (email, password) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     setError(null);
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -49,6 +59,7 @@ export const useAuth = () => {
   }, []);
 
   const signIn = useCallback(async (email, password) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     setError(null);
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -59,12 +70,14 @@ export const useAuth = () => {
   }, []);
 
   const signOut = useCallback(async () => {
+    if (!supabase) return;
     setError(null);
     const { error } = await supabase.auth.signOut();
     if (error) setError(error.message);
   }, []);
 
   const resetPassword = useCallback(async (email) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     setError(null);
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -74,6 +87,7 @@ export const useAuth = () => {
   }, []);
 
   const updatePassword = useCallback(async (newPassword) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     setError(null);
     const { data, error } = await supabase.auth.updateUser({
       password: newPassword,

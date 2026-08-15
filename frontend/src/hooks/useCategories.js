@@ -7,7 +7,15 @@ export const useCategories = (userId) => {
   const [error, setError] = useState(null);
 
   const fetchCategories = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    if (!supabase) {
+      setError("Konfigurasi Supabase belum lengkap.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabase
       .from("categories")
@@ -25,6 +33,7 @@ export const useCategories = (userId) => {
 
   const addCategory = useCallback(async (name) => {
     if (!userId || !name.trim()) return { error: "Nama kategori wajib diisi" };
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { data, error } = await supabase
       .from("categories")
       .insert([{ user_id: userId, name: name.trim() }])
@@ -35,6 +44,7 @@ export const useCategories = (userId) => {
   }, [userId]);
 
   const updateCategory = useCallback(async (id, name) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { data, error } = await supabase
       .from("categories")
       .update({ name: name.trim() })
@@ -46,6 +56,7 @@ export const useCategories = (userId) => {
   }, []);
 
   const deleteCategory = useCallback(async (id) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (!error) setCategories((prev) => prev.filter((c) => c.id !== id));
     return { error };

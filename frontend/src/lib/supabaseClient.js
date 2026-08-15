@@ -19,6 +19,17 @@ export const supabase = hasSupabaseConfig
     })
   : null;
 
+// Guard aman untuk setiap pemakaian `supabase` — kembalikan error ramah
+// kalau env belum di-set, alih-alih crash karena memanggil method pada `null`.
+export const requireSupabase = () => {
+  if (!supabase) {
+    throw new Error(
+      "Konfigurasi Supabase belum lengkap. Isi REACT_APP_SUPABASE_URL dan REACT_APP_SUPABASE_ANON_KEY di frontend/.env lalu rebuild."
+    );
+  }
+  return supabase;
+};
+
 // Admin emails dari env var saja — JANGAN hardcode di production
 export const ADMIN_EMAILS = (
   process.env.REACT_APP_ADMIN_EMAILS || ""

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { Plus, MessageSquare, Trash2, Download, Upload } from "lucide-react";
 import { Header } from "../components/Layout/Header";
@@ -17,12 +17,13 @@ import { useItems } from "../hooks/useItems";
 import { useCategories } from "../hooks/useCategories";
 import { useDebounce } from "../hooks/useDebounce";
 import { useClipboard } from "../hooks/useClipboard";
+import { useRealtime } from "../hooks/useRealtime";
 import { highlightMatch } from "../utils/formatters";
 
 export const VaultPage = () => {
   const { user, signOut } = useAuth();
-  const { items, loading, addItem, updateItem, toggleFavorite, moveToTrash, bulkMoveToTrash } = useItems(user?.id);
-  const { categories, addCategory, updateCategory, deleteCategory } = useCategories(user?.id);
+  const { items, loading, fetchItems, addItem, updateItem, toggleFavorite, moveToTrash, bulkMoveToTrash } = useItems(user?.id);
+  const { categories, fetchCategories, addCategory, updateCategory, deleteCategory } = useCategories(user?.id);
 
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("newest");
@@ -37,6 +38,14 @@ export const VaultPage = () => {
 
   const debouncedSearch = useDebounce(search, 300);
   const { copy } = useClipboard();
+
+  // Realtime sync: refetch data saat ada perubahan di Supabase (antar tab/perangkat).
+  useRealtime("items", () => {
+    fetchItems();
+  });
+  useRealtime("categories", () => {
+    fetchCategories();
+  });
 
   // Filter & Sort
   const filteredItems = useMemo(() => {

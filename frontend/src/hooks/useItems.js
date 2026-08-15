@@ -7,7 +7,15 @@ export const useItems = (userId, view = "active") => {
   const [error, setError] = useState(null);
 
   const fetchItems = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    if (!supabase) {
+      setError("Konfigurasi Supabase belum lengkap.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     let query = supabase.from("items").select("*");
@@ -31,6 +39,7 @@ export const useItems = (userId, view = "active") => {
 
   const addItem = useCallback(async (item) => {
     if (!userId) return { error: "Not authenticated" };
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { data, error } = await supabase
       .from("items")
       .insert([{ ...item, user_id: userId }])
@@ -41,6 +50,7 @@ export const useItems = (userId, view = "active") => {
   }, [userId]);
 
   const updateItem = useCallback(async (id, updates) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { data, error } = await supabase
       .from("items")
       .update(updates)
@@ -56,6 +66,7 @@ export const useItems = (userId, view = "active") => {
   }, [updateItem]);
 
   const moveToTrash = useCallback(async (id) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { data, error } = await supabase
       .from("items")
       .update({ deleted_at: new Date().toISOString() })
@@ -67,6 +78,7 @@ export const useItems = (userId, view = "active") => {
   }, []);
 
   const restoreItem = useCallback(async (id) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { data, error } = await supabase
       .from("items")
       .update({ deleted_at: null })
@@ -78,18 +90,21 @@ export const useItems = (userId, view = "active") => {
   }, []);
 
   const permanentDelete = useCallback(async (id) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { error } = await supabase.from("items").delete().eq("id", id);
     if (!error) setItems((prev) => prev.filter((i) => i.id !== id));
     return { error };
   }, []);
 
   const bulkDelete = useCallback(async (ids) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { error } = await supabase.from("items").delete().in("id", ids);
     if (!error) setItems((prev) => prev.filter((i) => !ids.includes(i.id)));
     return { error };
   }, []);
 
   const bulkMoveToTrash = useCallback(async (ids) => {
+    if (!supabase) return { error: { message: "Konfigurasi Supabase belum lengkap." } };
     const { error } = await supabase
       .from("items")
       .update({ deleted_at: new Date().toISOString() })
