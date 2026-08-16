@@ -9,6 +9,7 @@ import { SearchBar } from "../components/Vault/SearchBar";
 import { SortDropdown } from "../components/Vault/SortDropdown";
 import { ItemList } from "../components/Vault/ItemList";
 import { ItemEditor } from "../components/Vault/ItemEditor";
+import { ItemDetailModal } from "../components/Vault/ItemDetailModal";
 import { GeneratorModal } from "../components/Vault/GeneratorModal";
 import { CategoryManager } from "../components/Vault/CategoryManager";
 import { BulkActionsBar } from "../components/Vault/BulkActionsBar";
@@ -39,6 +40,7 @@ export const VaultPage = () => {
   const [activeCategory, setActiveCategory] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [detailItem, setDetailItem] = useState(null);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -337,6 +339,7 @@ export const VaultPage = () => {
               onSelect={handleSelect}
               selectionMode={selectionMode}
               view="active"
+              onOpen={setDetailItem}
             />
           </div>
         </main>
@@ -359,6 +362,12 @@ export const VaultPage = () => {
         onSave={handleSaveItem}
         item={editingItem}
         categories={categories}
+      />
+
+      <ItemDetailModal
+        item={detailItem}
+        isOpen={!!detailItem}
+        onClose={() => setDetailItem(null)}
       />
 
       <GeneratorModal isOpen={showGenerator} onClose={() => setShowGenerator(false)} />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { ItemCard } from "./ItemCard";
 import { ItemCardSkeleton } from "../UI/Skeleton";
@@ -16,8 +16,18 @@ export const ItemList = ({
   onSelect,
   selectionMode,
   view,
+  onOpen,
 }) => {
   const [lightboxImage, setLightboxImage] = useState(null);
+
+  useEffect(() => {
+    if (!lightboxImage) return;
+    const handleKey = (e) => {
+      if (e.key === "Escape") setLightboxImage(null);
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [lightboxImage]);
 
   if (loading) {
     return (
@@ -54,6 +64,7 @@ export const ItemList = ({
             onSelect={onSelect}
             selectionMode={selectionMode}
             onImageClick={setLightboxImage}
+            onOpen={onOpen}
           />
         ))}
       </div>

@@ -50,6 +50,7 @@ export const ItemCard = ({
   onSelect,
   selectionMode,
   onImageClick,
+  onOpen,
 }) => {
   const [copiedField, setCopiedField] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -99,8 +100,14 @@ export const ItemCard = ({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen?.(item)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onOpen?.(item);
+      }}
       className={`
-        group relative flex flex-col float-card shimmer overflow-hidden
+        group relative flex cursor-pointer flex-col float-card shimmer overflow-hidden
         ${isSelected
           ? "border-purple-400/60 ring-2 ring-purple-500/30"
           : ""
@@ -129,18 +136,18 @@ export const ItemCard = ({
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
               onError={() => setImgError(true)}
-              onClick={() => onImageClick?.(images[0])}
+              onClick={(e) => { e.stopPropagation(); onImageClick?.(images[0]); }}
             />
             {/* Image overlay actions */}
             <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
               <button
-                onClick={() => onImageClick?.(images[0])}
+                onClick={(e) => { e.stopPropagation(); onImageClick?.(images[0]); }}
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur-sm transition-transform hover:scale-110"
               >
                 <ExternalLink className="h-4 w-4" />
               </button>
               <button
-                onClick={() => handleCopyImage(images[0])}
+                onClick={(e) => { e.stopPropagation(); handleCopyImage(images[0]); }}
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur-sm transition-transform hover:scale-110"
               >
                 {copiedField === "img" || copiedField === "imgurl" ? (
@@ -227,7 +234,7 @@ export const ItemCard = ({
           <div className="flex items-center gap-1">
             <Tooltip text={item.favorite ? "Hapus favorit" : "Favoritkan"}>
               <button
-                onClick={() => onToggleFavorite(item.id, item.favorite)}
+                onClick={(e) => { e.stopPropagation(); onToggleFavorite(item.id, item.favorite); }}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-amber-500 dark:hover:bg-slate-800"
               >
                 <Heart className={`h-4 w-4 ${item.favorite ? "fill-amber-400 text-amber-400" : ""}`} />
@@ -236,7 +243,7 @@ export const ItemCard = ({
 
             <Tooltip text="Salin konten">
               <button
-                onClick={() => handleCopy(item.content, "content")}
+                onClick={(e) => { e.stopPropagation(); handleCopy(item.content, "content"); }}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
                 {copiedField === "content" ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
@@ -246,7 +253,7 @@ export const ItemCard = ({
             {/* Dropdown menu — Edit & Delete */}
             <div className="relative" ref={menuRef}>
               <button
-                onClick={() => setMenuOpen(!menuOpen)}
+                onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
                 <MoreVertical className="h-4 w-4" />
@@ -255,7 +262,7 @@ export const ItemCard = ({
               {menuOpen && (
                 <div className="absolute right-0 bottom-full z-30 mb-1 w-40 rounded-xl border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
                   <button
-                    onClick={() => { onEdit(item); setMenuOpen(false); }}
+                    onClick={(e) => { e.stopPropagation(); onEdit(item); setMenuOpen(false); }}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
                     <Edit3 className="h-3.5 w-3.5" />
@@ -263,7 +270,7 @@ export const ItemCard = ({
                   </button>
                   <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
                   <button
-                    onClick={() => { onDelete(item.id); setMenuOpen(false); }}
+                    onClick={(e) => { e.stopPropagation(); onDelete(item.id); setMenuOpen(false); }}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
