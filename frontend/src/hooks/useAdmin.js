@@ -53,8 +53,8 @@ export const useAdmin = (user) => {
   const envAdmin = ADMIN_EMAILS.includes(email);
   const approved = adminRow?.status === "approved" || envAdmin;
   const isAdmin = isOwner || approved;
-  // Akses AI = owner, ATAU admin approved (dengan ai_access true, atau envAdmin).
-  const canUseAI = isOwner || approved || adminRow?.ai_access === true;
+  // Semua user yang login boleh pakai AI (pembatasan akses AI dihapus).
+  const canUseAI = true;
 
   return { admin: adminRow, loading, isOwner, isAdmin, canUseAI };
 };
