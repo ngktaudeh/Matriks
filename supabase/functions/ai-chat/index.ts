@@ -37,6 +37,31 @@ const json = (obj, status = 200, headers = {}) =>
     headers: { "Content-Type": "application/json", ...headers },
   });
 
+// ---------- Rate limiting (in-memory, per-user) ----------
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 20; // max 20 request/menit per user
+const rateBuckets = new Map(); // key -> { count, resetAt }
+
+const rateLimit = (key) => {
+  const now = Date.now();
+  const b = rateBuckets.get(key);
+  if (!b || b.resetAt <= now) {
+    rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  if (b.count >= RATE_MAX) return false;
+  b.count++;
+  return true;
+};
+
+// Bersihkan bucket lama agar tidak bocor memori.
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, b] of rateBuckets) {
+    if (b.resetAt <= now) rateBuckets.delete(k);
+  }
+}, 60_000);
+
 serve(async (req) => {
   const origin = req.headers.get("origin") || "";
 
@@ -80,6 +105,16 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
     if (authErr || !user) {
       return json({ error: "Unauthorized" }, 401, corsHeaders);
+    }
+    // Rate limit per user (proteksi billing dari abuse).
+    if (!rateLimit(user.id)) {
+      return json({ error: "Rate limit exceeded" }, 429, corsHeaders);
+    }
+  } else {
+    // Tanpa JWT (mode dev) — rate limit per IP sebagai proteksi dasar.
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    if (!rateLimit(ip)) {
+      return json({ error: "Rate limit exceeded" }, 429, corsHeaders);
     }
   }
 
