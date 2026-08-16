@@ -38,8 +38,9 @@ export const useAdmin = (user) => {
   const isOwner = email === OWNER_EMAIL;
   const approved = adminRow?.status === "approved";
   const isAdmin = isOwner || approved;
-  // Opsi 1: semua admin yang disetujui otomatis dapat akses AI (tanpa flag terpisah).
-  const canUseAI = isOwner || approved;
+  // Akses AI = owner, ATAU admin yang disetujui DAN toggle ai_access aktif.
+  // Ini membuat toggle "Beri akses AI Chat" di Kelola Admin benar-benar berfungsi.
+  const canUseAI = isOwner || (approved && adminRow?.ai_access === true);
 
   return { admin: adminRow, loading, isOwner, isAdmin, canUseAI };
 };
