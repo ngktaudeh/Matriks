@@ -5,14 +5,17 @@ import { useLocalStorage } from "./useLocalStorage";
 const LOCAL_THREADS_KEY = "matriks-chat-threads";
 const LOCAL_ACTIVE_KEY = "matriks-chat-active-thread";
 
+// Scope localStorage per user agar chat antar akun di browser yang sama TIDAK bercampur.
+const userKey = (base, userId) => (userId ? `${base}:${userId}` : base);
+
 /**
  * Multi-thread chat history.
  * Prefer Supabase (chat_threads / chat_messages) bila tersedia;
  * fallback ke localStorage agar tetap jalan tanpa migrasi.
  */
 export const useChat = (userId) => {
-  const [localThreads, setLocalThreads] = useLocalStorage(LOCAL_THREADS_KEY, []);
-  const [activeId, setActiveId] = useLocalStorage(LOCAL_ACTIVE_KEY, null);
+  const [localThreads, setLocalThreads] = useLocalStorage(userKey(LOCAL_THREADS_KEY, userId), []);
+  const [activeId, setActiveId] = useLocalStorage(userKey(LOCAL_ACTIVE_KEY, userId), null);
   const [threads, setThreads] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
