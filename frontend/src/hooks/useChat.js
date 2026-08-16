@@ -18,6 +18,7 @@ export const useChat = (userId) => {
   const [loading, setLoading] = useState(true);
   const [useDb, setUseDb] = useState(false);
   const abortRef = useRef(null);
+  const dbIdMapRef = useRef({}); // client msgId -> DB row id (untuk update saat streaming selesai)
 
   // ---- Load threads ----
   const loadThreads = useCallback(async () => {
@@ -45,8 +46,9 @@ export const useChat = (userId) => {
       if (data?.length && activeId && !data.find((t) => t.id === activeId)) {
         setActiveId(data[0].id);
       }
-    } catch {
+    } catch (err) {
       // Tabel belum ada / RLS — pakai localStorage
+      console.warn("[useChat] loadThreads fallback ke localStorage:", err?.message || err);
       setThreads(localThreads);
       setUseDb(false);
       if (localThreads.length && !activeId) setActiveId(localThreads[0].id);
@@ -184,10 +186,11 @@ export const useChat = (userId) => {
       }
 
       if (useDb && supabase && userId && threadId) {
-        // Jangan persist placeholder assistant kosong (streaming) — dipersist di persistAssistantMessage
-        const skipDb = withId.role === "assistant" && !withId.content && !withId.isError;
-        if (!skipDb) {
-          await supabase.from("chat_messages").insert([
+        // Selalu insert ke DB (termasuk placeholder assistant kosong) supaya
+        // pesan tidak hilang kalau user refresh di tengah streaming.
+        const { data: inserted } = await supabase
+          .from("chat_messages")
+          .insert([
             {
               thread_id: threadId,
               user_id: userId,
@@ -195,7 +198,11 @@ export const useChat = (userId) => {
               content: withId.content,
               is_error: withId.isError,
             },
-          ]);
+          ])
+          .select("id")
+          .single();
+        if (inserted?.id) {
+          dbIdMapRef.current[withId.id] = inserted.id;
         }
         // Auto-title dari pesan user pertama
         if (msg.role === "user") {
@@ -255,11 +262,20 @@ export const useChat = (userId) => {
     [useDb, activeId, setLocalThreads]
   );
 
-  // ---- Persist final assistant message to DB after stream ----
+  // ---- Persist final assistant message ke DB setelah stream (UPDATE, bukan insert) ----
   const persistAssistantMessage = useCallback(
     async (msgId, content, isError = false) => {
       if (!useDb || !supabase || !userId || !activeId) return;
-      // Cek apakah sudah ada (streaming hanya update lokal)
+      const dbId = dbIdMapRef.current[msgId];
+      if (dbId) {
+        await supabase
+          .from("chat_messages")
+          .update({ content, is_error: isError })
+          .eq("id", dbId);
+        delete dbIdMapRef.current[msgId];
+        return;
+      }
+      // Fallback: kalau belum ada row (mis. useDb baru aktif), insert baru.
       await supabase.from("chat_messages").insert([
         {
           thread_id: activeId,
@@ -308,9 +324,18 @@ export const useChat = (userId) => {
 };
 
 /**
- * Bangun ringkasan konteks vault untuk system prompt AI.
+ * Estimasi jumlah token secara kasar (~1 token per 3.5 char).
  */
-export const buildVaultContext = (items = [], categories = []) => {
+export const estimateTokens = (text = "") => {
+  if (!text) return 0;
+  return Math.ceil(String(text).length / 3.5);
+};
+
+/**
+ * Bangun ringkasan konteks vault untuk system prompt AI.
+ * Dibatasi oleh BUDGET TOKEN (bukan sekadar jumlah item) agar tidak meledak.
+ */
+export const buildVaultContext = (items = [], categories = [], tokenBudget = 20000) => {
   if (!items.length) {
     return "Vault user saat ini kosong (belum ada item).";
   }
@@ -321,29 +346,43 @@ export const buildVaultContext = (items = [], categories = []) => {
     byCat[c].push(it);
   });
 
-  const lines = [
-    `Total item: ${items.length}. Kategori: ${categories.map((c) => c.name || c).join(", ") || Object.keys(byCat).join(", ")}.`,
-    "Daftar item (ringkas):",
-  ];
+  const header = `Total item: ${items.length}. Kategori: ${
+    categories.map((c) => c.name || c).join(", ") || Object.keys(byCat).join(", ")
+  }.`;
+  const lines = [header, "Daftar item (ringkas):"];
 
-  // Batasi agar tidak meledak token (~80 item max, content dipotong)
-  const maxItems = 80;
-  let count = 0;
+  let tokens = estimateTokens(header);
+  let omitted = 0;
+
   for (const [cat, list] of Object.entries(byCat)) {
-    lines.push(`\n## ${cat} (${list.length})`);
+    const catLine = `\n## ${cat} (${list.length})`;
+    if (tokens + estimateTokens(catLine) > tokenBudget) {
+      omitted += list.length;
+      continue;
+    }
+    lines.push(catLine);
+    tokens += estimateTokens(catLine);
+
     for (const it of list) {
-      if (count >= maxItems) {
-        lines.push(`… dan ${items.length - maxItems} item lainnya.`);
-        return lines.join("\n");
-      }
       const tags = it.tags?.length ? ` [${it.tags.join(", ")}]` : "";
       const fav = it.favorite ? " ★" : "";
       const contentPreview = (it.content || "")
         .replace(/\s+/g, " ")
         .slice(0, 180);
-      lines.push(`- ${it.title}${fav}${tags}: ${contentPreview}`);
-      count++;
+      const line = `- ${it.title}${fav}${tags}: ${contentPreview}`;
+      const lineTokens = estimateTokens(line);
+      if (tokens + lineTokens > tokenBudget) {
+        omitted += list.length;
+        break;
+      }
+      lines.push(line);
+      tokens += lineTokens;
     }
+    if (tokens >= tokenBudget) break;
+  }
+
+  if (omitted > 0) {
+    lines.push(`… dan ${omitted} item lainnya (dipotong agar sesuai batas token).`);
   }
   return lines.join("\n");
 };

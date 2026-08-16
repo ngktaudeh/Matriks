@@ -20,7 +20,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useAdmin } from "../hooks/useAdmin";
 import { useItems } from "../hooks/useItems";
 import { useCategories } from "../hooks/useCategories";
-import { useChat, buildVaultContext } from "../hooks/useChat";
+import { useChat, buildVaultContext, estimateTokens } from "../hooks/useChat";
 
 const SYSTEM_PROMPT = `Kamu adalah Matriks AI — asisten pribadi yang sangat cerdas untuk Knowledge Vault user.
 
@@ -158,6 +158,21 @@ export const AIPage = () => {
         });
       }
 
+      // Truncate history berdasarkan estimasi token (bukan slice -16 naif).
+      const HISTORY_BUDGET = 24000;
+      const trimmed = [];
+      let histTokens = 0;
+      for (let i = historyMessages.length - 1; i >= 0; i--) {
+        const m = historyMessages[i];
+        const t = estimateTokens(typeof m.content === "string" ? m.content : "");
+        if (histTokens + t > HISTORY_BUDGET) break;
+        trimmed.unshift({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.content,
+        });
+        histTokens += t;
+      }
+
       const payload = {
         model: process.env.REACT_APP_AI_MODEL || "kimi-k3",
         messages: [
@@ -165,10 +180,7 @@ export const AIPage = () => {
             role: "system",
             content: SYSTEM_PROMPT + vaultContext,
           },
-          ...historyMessages.slice(-16).map((m) => ({
-            role: m.role === "assistant" ? "assistant" : "user",
-            content: m.content,
-          })),
+          ...trimmed,
           {
             role: "user",
             content: images.length ? userContentParts : textPayload,
@@ -329,8 +341,8 @@ export const AIPage = () => {
   const handleCopy = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn("[AIPage] copy gagal:", err?.message || err);
     }
   };
 

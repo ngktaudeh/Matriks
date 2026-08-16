@@ -117,8 +117,8 @@ export const markdownToHtml = (md) => {
       continue;
     }
 
-    // ordered list
-    const ol = line.match(/^\d+[.)]\s+(.+)$/);
+    // ordered list — pertahankan nomor asli agar tidak semua jadi "1."
+    const ol = line.match(/^(\d+)[.)]\s+(.+)$/);
     if (ol) {
       if (inUl) {
         out.push("</ul>");
@@ -128,7 +128,7 @@ export const markdownToHtml = (md) => {
         out.push('<ol class="md-ol">');
         inOl = true;
       }
-      out.push(`<li>${renderInline(ol[1])}</li>`);
+      out.push(`<li value="${ol[1]}">${renderInline(ol[2])}</li>`);
       continue;
     }
 

@@ -24,7 +24,8 @@ export const useAdmin = (user) => {
           .eq("email", email)
           .maybeSingle();
         if (mounted) setAdminRow(data || null);
-      } catch {
+      } catch (err) {
+        console.warn("[useAdmin] fetch admins gagal:", err?.message || err);
         if (mounted) setAdminRow(null);
       }
       if (mounted) setLoading(false);

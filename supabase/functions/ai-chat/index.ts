@@ -6,79 +6,132 @@
  *   supabase functions deploy ai-chat --no-verify-jwt  (atau dengan JWT + cek auth)
  *
  * Secrets:
- *   supabase secrets set KIMI_API_KEY=sk-...
+ *   supabase secrets set KIMI_API_KEY=***
  *   supabase secrets set AI_MODEL=kimi-k3   (opsional)
+ *   supabase secrets set ALLOWED_ORIGINS=https://matriks-rouge.vercel.app   (opsional, comma-separated)
  *
  * Frontend: set REACT_APP_AI_PROXY_URL=https://YOUR_PROJECT.supabase.co/functions/v1/ai-chat
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+// ---------- Config ----------
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const REQUIRE_JWT = Deno.env.get("REQUIRE_JWT") !== "false"; // default: wajib auth
+const MAX_MESSAGES = 24;
+const MAX_TOKENS = 40000; // estimasi kasar; di bawah limit model 256K
+
+// ---------- Helpers ----------
+const estimateTokens = (text) => {
+  if (!text) return 0;
+  return Math.ceil(String(text).length / 3.5);
 };
 
+const json = (obj, status = 200, headers = {}) =>
+  new Response(JSON.stringify(obj), {
+    status,
+    headers: { "Content-Type": "application/json", ...headers },
+  });
+
 serve(async (req) => {
+  const origin = req.headers.get("origin") || "";
+
+  // ---------- CORS ----------
+  const corsHeaders = {
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  if (ALLOWED_ORIGINS.length > 0) {
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      corsHeaders["Access-Control-Allow-Origin"] = origin;
+      corsHeaders["Vary"] = "Origin";
+    } else {
+      corsHeaders["Access-Control-Allow-Origin"] = ALLOWED_ORIGINS[0];
+    }
+  } else {
+    corsHeaders["Access-Control-Allow-Origin"] = "*";
+  }
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS });
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  // ---------- Auth (JWT) ----------
+  if (REQUIRE_JWT) {
+    const auth = req.headers.get("authorization") || "";
+    const apikey = req.headers.get("apikey") || "";
+    if (!auth.startsWith("Bearer ") || !apikey) {
+      return json({ error: "Unauthorized" }, 401, corsHeaders);
+    }
+    const token = auth.slice(7);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    if (!supabaseUrl || !supabaseAnon) {
+      return json({ error: "Server auth not configured" }, 500, corsHeaders);
+    }
+    const supabase = createClient(supabaseUrl, supabaseAnon, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) {
+      return json({ error: "Unauthorized" }, 401, corsHeaders);
+    }
   }
 
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return json({ error: "Method not allowed" }, 405, corsHeaders);
   }
 
   const apiKey = Deno.env.get("KIMI_API_KEY") || "";
   if (!apiKey) {
-    return new Response(
-      JSON.stringify({ error: "KIMI_API_KEY secret not configured" }),
-      {
-        status: 500,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      }
-    );
+    return json({ error: "KIMI_API_KEY secret not configured" }, 500, corsHeaders);
   }
-
-  // Optional: require Authorization header (Supabase JWT)
-  // const auth = req.headers.get("Authorization");
-  // if (!auth) return new Response("Unauthorized", { status: 401, headers: CORS });
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return json({ error: "Invalid JSON" }, 400, corsHeaders);
   }
 
-  const model =
-    (body.model as string) || Deno.env.get("AI_MODEL") || "kimi-k3";
+  const model = (body.model as string) || Deno.env.get("AI_MODEL") || "kimi-k3";
   const messages = body.messages;
   const stream = body.stream !== false;
 
   if (!Array.isArray(messages) || messages.length === 0) {
-    return new Response(JSON.stringify({ error: "messages required" }), {
-      status: 400,
-      headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return json({ error: "messages required" }, 400, corsHeaders);
   }
 
-  // Hard limit history size
-  const safeMessages = messages.slice(-24);
+  // ---------- Token-aware truncation ----------
+  // Selalu pertahankan pesan terakhir (pesan user terbaru). Sisanya dipangkas
+  // dari belakang berdasarkan estimasi token agar tidak overflow konteks.
+  const last = messages[messages.length - 1];
+  const rest = messages.slice(0, -1);
+  let acc = estimateTokens(
+    typeof last?.content === "string" ? last.content : JSON.stringify(last?.content || "")
+  );
+  const kept = [last];
+  for (let i = rest.length - 1; i >= 0; i--) {
+    const m = rest[i];
+    const t = estimateTokens(
+      typeof m?.content === "string" ? m.content : JSON.stringify(m?.content || "")
+    );
+    if (acc + t > MAX_TOKENS || kept.length >= MAX_MESSAGES) break;
+    kept.unshift(m);
+    acc += t;
+  }
 
   // kimi-k3 hanya mengizinkan temperature = 1 (fixed). Mengirim nilai lain
   // (atau temperature sama sekali) → error 400 "invalid temperature".
   const isKimiK3 = model === "kimi-k3" || model.startsWith("kimi-k3");
   const payload: Record<string, unknown> = {
     model,
-    messages: safeMessages,
+    messages: kept,
     stream,
   };
   if (!isKimiK3) {
@@ -97,16 +150,14 @@ serve(async (req) => {
 
   if (!upstream.ok) {
     const errText = await upstream.text();
-    return new Response(
-      JSON.stringify({
+    return json(
+      {
         error: "Upstream AI error",
         status: upstream.status,
         detail: errText.slice(0, 500),
-      }),
-      {
-        status: upstream.status,
-        headers: { ...CORS, "Content-Type": "application/json" },
-      }
+      },
+      upstream.status,
+      corsHeaders
     );
   }
 
@@ -115,7 +166,7 @@ serve(async (req) => {
     return new Response(upstream.body, {
       status: 200,
       headers: {
-        ...CORS,
+        ...corsHeaders,
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
@@ -124,8 +175,5 @@ serve(async (req) => {
   }
 
   const data = await upstream.json();
-  return new Response(JSON.stringify(data), {
-    status: 200,
-    headers: { ...CORS, "Content-Type": "application/json" },
-  });
+  return json(data, 200, corsHeaders);
 });
