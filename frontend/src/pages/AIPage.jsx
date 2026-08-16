@@ -114,7 +114,6 @@ export const AIPage = () => {
           { role: "user", content: userContent },
         ],
         stream: true,
-        temperature: 0.6,
       };
 
       const controller = new AbortController();
