@@ -37,7 +37,8 @@ export const useAdmin = (user) => {
   const isOwner = email === OWNER_EMAIL;
   const approved = adminRow?.status === "approved";
   const isAdmin = isOwner || approved;
-  const canUseAI = isOwner || (approved && adminRow?.ai_access === true);
+  // Opsi 1: semua admin yang disetujui otomatis dapat akses AI (tanpa flag terpisah).
+  const canUseAI = isOwner || approved;
 
   return { admin: adminRow, loading, isOwner, isAdmin, canUseAI };
 };
