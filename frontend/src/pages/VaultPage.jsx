@@ -221,7 +221,7 @@ export const VaultPage = () => {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-white dark:bg-slate-950">
+    <div className="flex h-screen flex-col bg-transparent">
       <Header
         onMenuClick={() => setMobileMenuOpen(true)}
         user={user}
@@ -347,7 +347,7 @@ export const VaultPage = () => {
         <button
           onClick={() => navigate("/ai")}
           title="Matriks AI (Ctrl+B)"
-          className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/30 transition-transform hover:scale-110 active:scale-95"
+          className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-2xl btn-neon glow-pulse float-y"
         >
           <MessageSquare className="h-5 w-5" />
         </button>

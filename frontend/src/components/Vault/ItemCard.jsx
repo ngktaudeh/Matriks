@@ -100,12 +100,10 @@ export const ItemCard = ({
   return (
     <div
       className={`
-        group relative flex flex-col rounded-2xl border bg-white transition-all duration-300
-        hover:shadow-xl hover:-translate-y-1
-        dark:bg-slate-900
+        group relative flex flex-col float-card shimmer overflow-hidden
         ${isSelected
-          ? "border-slate-900 ring-2 ring-slate-900/10 dark:border-white dark:ring-white/10"
-          : "border-slate-200 dark:border-slate-700"
+          ? "border-purple-400/60 ring-2 ring-purple-500/30"
+          : ""
         }
       `}
     >
@@ -217,7 +215,7 @@ export const ItemCard = ({
         )}
 
         {/* Footer: Meta + Actions */}
-        <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div className="mt-auto flex items-center justify-between border-t border-white/10 pt-4">
           <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
             <Clock className="h-3 w-3" />
             <span>{formatRelative(item.updated_at || item.created_at)}</span>

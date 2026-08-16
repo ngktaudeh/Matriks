@@ -46,13 +46,11 @@ export const LoginPage = () => {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-0 h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-violet-500/20 blur-[110px]" />
-        <div className="absolute bottom-0 right-0 h-[320px] w-[320px] rounded-full bg-indigo-500/15 blur-[90px]" />
-        <div className="absolute bottom-20 left-10 h-[200px] w-[200px] rounded-full bg-fuchsia-500/10 blur-[70px]" />
-      </div>
+      <div className="orb top-0 left-1/4 h-80 w-80 bg-purple-500/40" />
+      <div className="orb bottom-10 right-10 h-64 w-64 bg-pink-500/30" style={{ animationDelay: "2s" }} />
+      <div className="orb top-1/3 right-1/4 h-48 w-48 bg-cyan-400/20" style={{ animationDelay: "4s" }} />
 
-      <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-white/70 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/60">
+      <div className="relative w-full max-w-md float-card glass shimmer p-8">
         {mode === "login" && (
           <LoginForm
             onSubmit={handleLogin}

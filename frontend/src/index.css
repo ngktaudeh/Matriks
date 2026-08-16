@@ -4,23 +4,23 @@
 
 @layer base {
   :root {
-    --background: 250 100% 99%;
-    --foreground: 250 40% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 250 40% 12%;
-    --primary: 262 83% 58%;
+    --background: 250 35% 7%;
+    --foreground: 250 20% 96%;
+    --card: 250 30% 10%;
+    --card-foreground: 250 20% 96%;
+    --primary: 262 83% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 250 40% 96%;
-    --secondary-foreground: 250 40% 20%;
-    --muted: 250 30% 96%;
-    --muted-foreground: 250 15% 45%;
-    --accent: 262 90% 96%;
-    --accent-foreground: 262 60% 35%;
-    --destructive: 0 84% 60%;
+    --secondary: 250 25% 14%;
+    --secondary-foreground: 250 20% 90%;
+    --muted: 250 25% 14%;
+    --muted-foreground: 250 15% 60%;
+    --accent: 262 40% 18%;
+    --accent-foreground: 262 80% 85%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 250 25% 90%;
-    --input: 250 25% 90%;
-    --ring: 262 83% 58%;
+    --border: 250 20% 18%;
+    --input: 250 20% 18%;
+    --ring: 262 83% 65%;
     --radius: 0.85rem;
   }
 
@@ -44,22 +44,20 @@
     --ring: 262 83% 65%;
   }
 
-  body {
-    @apply antialiased text-slate-900;
-    color: hsl(var(--foreground));
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    background:
-      radial-gradient(1000px 500px at 0% 0%, rgba(139, 92, 246, 0.06), transparent 50%),
-      radial-gradient(800px 400px at 100% 0%, rgba(99, 102, 241, 0.05), transparent 45%),
-      hsl(var(--background));
+  html {
+    color-scheme: dark;
   }
 
-  .dark body {
-    @apply text-slate-100;
+  body {
+    @apply antialiased;
+    color: #f4f1fa;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     background:
-      radial-gradient(1200px 600px at 10% -10%, rgba(139, 92, 246, 0.14), transparent 50%),
-      radial-gradient(900px 500px at 90% 0%, rgba(99, 102, 241, 0.10), transparent 45%),
-      hsl(var(--background));
+      radial-gradient(1200px 600px at 10% -10%, rgba(139, 92, 246, 0.16), transparent 50%),
+      radial-gradient(900px 500px at 90% 0%, rgba(99, 102, 241, 0.12), transparent 45%),
+      radial-gradient(1000px 600px at 50% 120%, rgba(217, 70, 239, 0.10), transparent 55%),
+      #0a0712;
+    background-attachment: fixed;
   }
 
   ::-webkit-scrollbar {
@@ -71,14 +69,15 @@
   }
   ::-webkit-scrollbar-thumb {
     @apply rounded-full;
-    background: hsl(var(--border));
+    background: rgba(255, 255, 255, 0.12);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(250 15% 55% / 0.45);
+    background: rgba(168, 85, 247, 0.4);
   }
 
   ::selection {
-    background: hsl(var(--primary) / 0.25);
+    background: rgba(168, 85, 247, 0.4);
+    color: #fff;
   }
 }
 
@@ -101,6 +100,120 @@
   }
   .slide-in-from-bottom-4 {
     animation-name: slideInBottom4;
+  }
+
+  /* ========== Glass (kaca buram) ========== */
+  .glass {
+    background: rgba(255, 255, 255, 0.06);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  /* ========== Float card (3D terangkat) ========== */
+  .float-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow:
+      0 10px 40px -12px rgba(0, 0, 0, 0.55),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .float-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(168, 85, 247, 0.5);
+    box-shadow:
+      0 22px 50px -12px rgba(0, 0, 0, 0.65),
+      0 0 32px -6px rgba(168, 85, 247, 0.35);
+  }
+
+  /* ========== Shimmer (kilau menyapu) ========== */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      110deg,
+      transparent 25%,
+      rgba(255, 255, 255, 0.16) 50%,
+      transparent 75%
+    );
+    transform: translateX(-100%);
+    animation: shimmer 2.8s infinite;
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+
+  /* ========== Button neon ========== */
+  .btn-neon {
+    background: linear-gradient(135deg, #8b5cf6, #d946ef, #22d3ee);
+    background-size: 220% 220%;
+    animation: gradientShift 5s ease infinite;
+    box-shadow:
+      0 0 20px rgba(168, 85, 247, 0.5),
+      0 4px 20px rgba(217, 70, 239, 0.4);
+  }
+  .btn-neon:hover {
+    box-shadow:
+      0 0 36px rgba(168, 85, 247, 0.75),
+      0 8px 30px rgba(217, 70, 239, 0.55);
+    filter: brightness(1.1);
+  }
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* ========== Orb (bola cahaya melayang) ========== */
+  .orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(60px);
+    opacity: 0.55;
+    pointer-events: none;
+    animation: orbFloat 8s ease-in-out infinite;
+  }
+  @keyframes orbFloat {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.08); }
+  }
+
+  /* ========== Glow pulse ========== */
+  .glow-pulse {
+    animation: glowPulse 2.5s ease-in-out infinite;
+  }
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
+    50% { box-shadow: 0 0 35px rgba(168, 85, 247, 0.8); }
+  }
+
+  /* ========== Float Y (mengambang) ========== */
+  .float-y {
+    animation: floatY 4s ease-in-out infinite;
+  }
+  @keyframes floatY {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* ========== Input neon ========== */
+  .input-neon {
+    box-shadow:
+      0 0 0 1px rgba(168, 85, 247, 0.22),
+      0 0 22px -6px rgba(168, 85, 247, 0.35);
+  }
+  .input-neon:focus-within {
+    box-shadow:
+      0 0 0 1px rgba(168, 85, 247, 0.5),
+      0 0 32px -4px rgba(168, 85, 247, 0.55);
   }
 }
 
@@ -173,44 +286,32 @@
 .md-body .md-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.85em;
-  background: rgba(139, 92, 246, 0.1);
+  background: rgba(167, 139, 250, 0.16);
   padding: 0.1em 0.35em;
   border-radius: 0.3em;
-}
-.dark .md-body .md-code {
-  background: rgba(167, 139, 250, 0.15);
 }
 .md-body .md-pre {
   margin: 0.6em 0;
   padding: 0.75rem 1rem;
   border-radius: 0.75rem;
   overflow-x: auto;
-  background: #0f172a;
+  background: #0b0714;
   color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 0.8rem;
   line-height: 1.5;
-}
-.dark .md-body .md-pre {
-  background: #020617;
-  border: 1px solid #1e293b;
 }
 .md-body .md-code-block {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   white-space: pre;
 }
 .md-body .md-link {
-  color: #7c3aed;
+  color: #c4b5fd;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.dark .md-body .md-link {
-  color: #a78bfa;
-}
 .md-body .md-hr {
   border: none;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   margin: 0.85em 0;
-}
-.dark .md-body .md-hr {
-  border-color: #334155;
 }

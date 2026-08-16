@@ -8,6 +8,9 @@ import {
   Trash2,
   PanelLeft,
   Square,
+  Paperclip,
+  X,
+  FileText,
 } from "lucide-react";
 import { Button } from "../components/UI/Button";
 import { ChatMessage } from "../components/AI/ChatMessage";
@@ -69,9 +72,11 @@ export const AIPage = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [attachments, setAttachments] = useState([]); // { id, name, type, dataUrl, isImage }
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const vaultContext = useMemo(
     () => buildVaultContext(items, categories),
@@ -100,10 +105,58 @@ export const AIPage = () => {
     setLoading(false);
   }, []);
 
+  const handlePickFiles = () => fileInputRef.current?.click();
+
+  const handleFilesSelected = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    const next = [];
+    for (const file of files.slice(0, 4)) {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      next.push({
+        id: `${Date.now()}-${file.name}`,
+        name: file.name,
+        type: file.type,
+        dataUrl,
+        isImage: file.type.startsWith("image/"),
+      });
+    }
+    setAttachments((prev) => [...prev, ...next].slice(0, 6));
+  };
+
+  const removeAttachment = (id) =>
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+
   const callAI = useCallback(
     async (historyMessages, userContent) => {
       const apiKey = process.env.REACT_APP_KIMI_API_KEY || "";
       const proxyUrl = process.env.REACT_APP_AI_PROXY_URL || "";
+
+      const images = attachments.filter((a) => a.isImage);
+      const texts = attachments.filter((a) => !a.isImage);
+
+      let textPayload = userContent;
+      if (texts.length) {
+        textPayload +=
+          "\n\n[File terlampir]\n" +
+          texts.map((t) => `- ${t.name}`).join("\n");
+      }
+
+      const userContentParts = [];
+      if (images.length) {
+        userContentParts.push({ type: "text", text: textPayload });
+        images.forEach((img) => {
+          userContentParts.push({
+            type: "image_url",
+            image_url: { url: img.dataUrl },
+          });
+        });
+      }
 
       const payload = {
         model: process.env.REACT_APP_AI_MODEL || "kimi-k3",
@@ -116,7 +169,10 @@ export const AIPage = () => {
             role: m.role === "assistant" ? "assistant" : "user",
             content: m.content,
           })),
-          { role: "user", content: userContent },
+          {
+            role: "user",
+            content: images.length ? userContentParts : textPayload,
+          },
         ],
         stream: true,
       };
@@ -158,7 +214,7 @@ export const AIPage = () => {
 
       return response;
     },
-    [vaultContext]
+    [vaultContext, attachments]
   );
 
   const streamResponse = useCallback(
@@ -202,7 +258,8 @@ export const AIPage = () => {
 
   const handleSend = async (overrideText) => {
     const text = (overrideText ?? input).trim();
-    if (!text || loading) return;
+    const hasAttach = attachments.length > 0;
+    if ((!text && !hasAttach) || loading) return;
 
     setInput("");
     setLoading(true);
@@ -210,7 +267,7 @@ export const AIPage = () => {
     const userMsg = {
       id: `u-${Date.now()}`,
       role: "user",
-      content: text,
+      content: text || (hasAttach ? `(${attachments.length} file terlampir)` : text),
       timestamp: new Date().toISOString(),
     };
     await appendMessage(userMsg);
@@ -250,6 +307,7 @@ export const AIPage = () => {
     } finally {
       abortRef.current = null;
       setLoading(false);
+      setAttachments([]);
       inputRef.current?.focus();
     }
   };
@@ -402,41 +460,73 @@ export const AIPage = () => {
               </div>
             </div>
 
-            <div className="shrink-0 border-t border-slate-200/80 p-3 dark:border-slate-800/80 sm:p-4">
-              <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-slate-200/80 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/80">
+            <div className="shrink-0 border-t border-white/10 p-3 sm:p-4">
+              {attachments.length > 0 && (
+                <div className="mx-auto mb-2 flex max-w-3xl flex-wrap gap-2">
+                  {attachments.map((a) => (
+                    <div
+                      key={a.id}
+                      className="group relative flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-2 py-1.5 text-xs text-white/80"
+                    >
+                      {a.isImage ? (
+                        <img src={a.dataUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-fuchsia-300" />
+                      )}
+                      <span className="max-w-[100px] truncate">{a.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(a.id)}
+                        className="rounded-full p-0.5 hover:bg-white/15"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-white/15 bg-white/5 p-2 shadow-lg backdrop-blur-xl input-neon">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.pdf,.txt,.md,.json,.csv"
+                  multiple
+                  className="hidden"
+                  onChange={handleFilesSelected}
+                />
+                <button
+                  type="button"
+                  onClick={handlePickFiles}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white"
+                  title="Upload gambar / file"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </button>
                 <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Tanyakan sesuatu tentang vault kamu…"
+                  placeholder="Tanya vault, atau tempel + upload gambar…"
                   rows={1}
-                  className="max-h-36 min-h-[40px] flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white"
+                  className="max-h-36 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2.5 text-sm text-white placeholder:text-white/35 focus:outline-none"
                 />
                 {loading ? (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-10 w-10 shrink-0"
-                    onClick={stopGeneration}
-                    title="Stop"
-                  >
+                  <Button size="icon" variant="ghost" className="h-10 w-10" onClick={stopGeneration}>
                     <Square className="h-4 w-4 fill-current" />
                   </Button>
                 ) : (
                   <Button
                     size="icon"
-                    className="h-10 w-10 shrink-0 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-500/25 hover:brightness-110"
-                    disabled={!input.trim()}
+                    className="h-10 w-10"
+                    disabled={!input.trim() && attachments.length === 0}
                     onClick={() => handleSend()}
                   >
                     <Send className="h-4 w-4" />
                   </Button>
                 )}
               </div>
-              <p className="mx-auto mt-2 max-w-3xl text-center text-[10px] text-slate-400">
-                Matriks AI memakai konteks vault kamu. Jangan bagikan data sangat sensitif jika tidak perlu.
-              </p>
             </div>
           </div>
         </div>
