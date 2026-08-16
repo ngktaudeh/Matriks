@@ -15,18 +15,18 @@ export const ChatMessage = ({ msg, onCopy, onRegenerate, isLastAssistant }) => {
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-500/20">
-          <Bot className="h-4.5 w-4.5 text-white" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-500/25">
+          <Bot className="h-4 w-4 text-white" />
         </div>
       )}
 
       <div
         className={`group relative max-w-[min(85%,42rem)] rounded-2xl px-4 py-3 text-sm leading-relaxed transition-all ${
           isUser
-            ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm"
+            ? "bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20"
             : msg.isError
-              ? "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800"
-              : "bg-white dark:bg-slate-800/80 text-slate-800 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700/80 shadow-sm"
+              ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+              : "border border-slate-200/80 bg-white text-slate-800 shadow-sm dark:border-slate-700/80 dark:bg-slate-800/80 dark:text-slate-100"
         }`}
       >
         {isUser ? (

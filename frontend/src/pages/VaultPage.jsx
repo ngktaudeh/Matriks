@@ -347,7 +347,7 @@ export const VaultPage = () => {
         <button
           onClick={() => navigate("/ai")}
           title="Matriks AI (Ctrl+B)"
-          className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition-transform hover:scale-110 active:scale-95 dark:bg-white dark:text-slate-900"
+          className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/30 transition-transform hover:scale-110 active:scale-95"
         >
           <MessageSquare className="h-5 w-5" />
         </button>

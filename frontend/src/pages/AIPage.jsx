@@ -295,10 +295,10 @@ export const AIPage = () => {
   const isBooting = authLoading || adminLoading || chatLoading;
 
   return (
-    <div className="flex h-screen flex-col bg-white dark:bg-slate-950">
+    <div className="flex h-screen flex-col bg-transparent">
       {isBooting ? (
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
         </div>
       ) : (
         <div className="flex min-h-0 flex-1">
@@ -316,7 +316,7 @@ export const AIPage = () => {
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white/80 px-3 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80">
+            <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/70 px-3 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/60">
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -332,8 +332,8 @@ export const AIPage = () => {
                   Vault
                 </Button>
                 <div className="ml-1 hidden items-center gap-2 sm:flex">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 dark:bg-white">
-                    <Bot className="h-3.5 w-3.5 text-white dark:text-slate-900" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-500/25">
+                    <Bot className="h-4 w-4 text-white" />
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold leading-tight text-slate-900 dark:text-white">
@@ -389,11 +389,11 @@ export const AIPage = () => {
 
                 {loading && (
                   <div className="flex gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                      <Bot className="h-4 w-4 text-slate-600" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-500/25">
+                      <Bot className="h-4 w-4 text-white" />
                     </div>
-                    <div className="flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
-                      <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                    <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm dark:border-slate-700/80 dark:bg-slate-800/80">
+                      <Loader2 className="h-4 w-4 animate-spin text-violet-500" />
                       <span className="text-xs text-slate-500">Menulis…</span>
                     </div>
                   </div>
@@ -402,14 +402,14 @@ export const AIPage = () => {
               </div>
             </div>
 
-            <div className="shrink-0 border-t border-slate-200 p-3 dark:border-slate-800 sm:p-4">
-              <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="shrink-0 border-t border-slate-200/80 p-3 dark:border-slate-800/80 sm:p-4">
+              <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-slate-200/80 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/80">
                 <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Tanyakan sesuatu tentang vault Anda…"
+                  placeholder="Tanyakan sesuatu tentang vault kamu…"
                   rows={1}
                   className="max-h-36 min-h-[40px] flex-1 resize-none bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white"
                 />
@@ -426,7 +426,7 @@ export const AIPage = () => {
                 ) : (
                   <Button
                     size="icon"
-                    className="h-10 w-10 shrink-0"
+                    className="h-10 w-10 shrink-0 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-500/25 hover:brightness-110"
                     disabled={!input.trim()}
                     onClick={() => handleSend()}
                   >
@@ -435,7 +435,7 @@ export const AIPage = () => {
                 )}
               </div>
               <p className="mx-auto mt-2 max-w-3xl text-center text-[10px] text-slate-400">
-                Matriks AI memakai konteks vault Anda. Jangan bagikan data sangat sensitif jika tidak perlu.
+                Matriks AI memakai konteks vault kamu. Jangan bagikan data sangat sensitif jika tidak perlu.
               </p>
             </div>
           </div>

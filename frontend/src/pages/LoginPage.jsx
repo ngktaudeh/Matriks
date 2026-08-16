@@ -7,12 +7,11 @@ import { PasswordReset } from "../components/Auth/PasswordReset";
 import { useAuth } from "../hooks/useAuth";
 
 export const LoginPage = () => {
-  const [mode, setMode] = useState("login"); // login | signup | reset
+  const [mode, setMode] = useState("login");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { signIn, signUp, resetPassword, loading, error } = useAuth();
 
-  // Handle recovery token from URL
   React.useEffect(() => {
     const type = searchParams.get("type");
     if (type === "recovery") {
@@ -46,8 +45,14 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
-      <div className="w-full max-w-md">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-0 h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-violet-500/20 blur-[110px]" />
+        <div className="absolute bottom-0 right-0 h-[320px] w-[320px] rounded-full bg-indigo-500/15 blur-[90px]" />
+        <div className="absolute bottom-20 left-10 h-[200px] w-[200px] rounded-full bg-fuchsia-500/10 blur-[70px]" />
+      </div>
+
+      <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-white/70 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/60">
         {mode === "login" && (
           <LoginForm
             onSubmit={handleLogin}

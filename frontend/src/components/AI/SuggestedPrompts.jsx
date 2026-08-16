@@ -59,7 +59,7 @@ export const SuggestedPrompts = ({ onSelect }) => (
         <button
           key={p.label}
           onClick={() => onSelect?.(p.text)}
-          className="group flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-left transition-all hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/80 dark:bg-slate-900 dark:hover:border-slate-600"
+          className="group flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-slate-700/80 dark:bg-slate-900 dark:hover:border-slate-600"
         >
           <div
             className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${p.color} shadow-sm`}
@@ -67,7 +67,7 @@ export const SuggestedPrompts = ({ onSelect }) => (
             <p.icon className="h-4 w-4 text-white" />
           </div>
           <div>
-            <div className="text-sm font-medium text-slate-800 dark:text-slate-100 group-hover:text-slate-900 dark:group-hover:text-white">
+            <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
               {p.label}
             </div>
             <div className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
