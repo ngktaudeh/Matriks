@@ -332,6 +332,21 @@ export const estimateTokens = (text = "") => {
 };
 
 /**
+ * Sanitasi ringan konten vault agar tidak bisa memanipulasi system prompt
+ * (mitigasi prompt injection). Konten item diperlakukan sebagai data, bukan instruksi.
+ */
+const sanitizeVaultText = (text = "") => {
+  let t = String(text)
+    .replace(/\s+/g, " ")
+    // Batasi instruksi sistem yang jelas-jelas mencoba "menimpa" peran AI.
+    .replace(/ignore (all )?(previous|prior|above) instructions/gi, "[instruksi diabaikan]")
+    .replace(/forget (everything|your (rules|instructions|prompt))/gi, "[instruksi diabaikan]")
+    .replace(/you are now /gi, "")
+    .replace(/system\s*:/gi, "");
+  return t;
+};
+
+/**
  * Bangun ringkasan konteks vault untuk system prompt AI.
  * Dibatasi oleh BUDGET TOKEN (bukan sekadar jumlah item) agar tidak meledak.
  */
@@ -366,9 +381,7 @@ export const buildVaultContext = (items = [], categories = [], tokenBudget = 200
     for (const it of list) {
       const tags = it.tags?.length ? ` [${it.tags.join(", ")}]` : "";
       const fav = it.favorite ? " ★" : "";
-      const contentPreview = (it.content || "")
-        .replace(/\s+/g, " ")
-        .slice(0, 180);
+      const contentPreview = sanitizeVaultText(it.content || "").slice(0, 180);
       const line = `- ${it.title}${fav}${tags}: ${contentPreview}`;
       const lineTokens = estimateTokens(line);
       if (tokens + lineTokens > tokenBudget) {

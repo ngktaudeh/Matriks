@@ -49,7 +49,7 @@ Konteks vault user saat ini:
 
 export const AIPage = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const { canUseAI, loading: adminLoading } = useAdmin(user);
   const { items } = useItems(user?.id);
   const { categories } = useCategories(user?.id);
@@ -194,9 +194,15 @@ export const AIPage = () => {
 
       let response;
       if (proxyUrl) {
+        const accessToken = session?.access_token || "";
+        const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || "";
         response = await fetch(proxyUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            apikey: anonKey,
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
@@ -226,7 +232,7 @@ export const AIPage = () => {
 
       return response;
     },
-    [vaultContext, attachments]
+    [vaultContext, attachments, session]
   );
 
   const streamResponse = useCallback(

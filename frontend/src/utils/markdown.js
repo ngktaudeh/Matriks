@@ -93,6 +93,33 @@ export const markdownToHtml = (md) => {
       continue;
     }
 
+    // table row (contains pipe) — minimal table support
+    if (line.includes("|") && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+      closeLists();
+      const headerCells = line
+        .replace(/^\s*\|/, "")
+        .replace(/\|\s*$/, "")
+        .split("|")
+        .map((c) => c.trim());
+      out.push('<table class="md-table"><thead><tr>');
+      headerCells.forEach((c) => out.push(`<th>${renderInline(c)}</th>`));
+      out.push("</tr></thead><tbody>");
+      i++; // skip separator line
+      while (i + 1 < lines.length && lines[i + 1].includes("|")) {
+        i++;
+        const cells = lines[i]
+          .replace(/^\s*\|/, "")
+          .replace(/\|\s*$/, "")
+          .split("|")
+          .map((c) => c.trim());
+        out.push("<tr>");
+        cells.forEach((c) => out.push(`<td>${renderInline(c)}</td>`));
+        out.push("</tr>");
+      }
+      out.push("</tbody></table>");
+      continue;
+    }
+
     // headings
     const h = line.match(/^(#{1,4})\s+(.+)$/);
     if (h) {

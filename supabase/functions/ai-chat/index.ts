@@ -31,6 +31,22 @@ const estimateTokens = (text) => {
   return Math.ceil(String(text).length / 3.5);
 };
 
+// Estimasi token untuk konten pesan (bisa string atau array part, mis. gambar).
+const contentTokens = (content) => {
+  if (typeof content === "string") return estimateTokens(content);
+  if (Array.isArray(content)) {
+    return content.reduce((sum, part) => {
+      if (typeof part?.text === "string") return sum + estimateTokens(part.text);
+      if (part?.type === "image_url") {
+        // Base64 gambar tidak dihitung penuh; beri bobot kasar per gambar.
+        return sum + 1000;
+      }
+      return sum;
+    }, 0);
+  }
+  return 0;
+};
+
 const json = (obj, status = 200, headers = {}) =>
   new Response(JSON.stringify(obj), {
     status,
@@ -47,20 +63,18 @@ const rateLimit = (key) => {
   const b = rateBuckets.get(key);
   if (!b || b.resetAt <= now) {
     rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    // Lazy cleanup: hapus bucket kadaluarsa sesekali agar tidak bocor memori.
+    if (rateBuckets.size > 1000) {
+      for (const [k, v] of rateBuckets) {
+        if (v.resetAt <= now) rateBuckets.delete(k);
+      }
+    }
     return true;
   }
   if (b.count >= RATE_MAX) return false;
   b.count++;
   return true;
 };
-
-// Bersihkan bucket lama agar tidak bocor memori.
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, b] of rateBuckets) {
-    if (b.resetAt <= now) rateBuckets.delete(k);
-  }
-}, 60_000);
 
 serve(async (req) => {
   const origin = req.headers.get("origin") || "";
@@ -147,15 +161,11 @@ serve(async (req) => {
   // dari belakang berdasarkan estimasi token agar tidak overflow konteks.
   const last = messages[messages.length - 1];
   const rest = messages.slice(0, -1);
-  let acc = estimateTokens(
-    typeof last?.content === "string" ? last.content : JSON.stringify(last?.content || "")
-  );
+  let acc = contentTokens(last?.content);
   const kept = [last];
   for (let i = rest.length - 1; i >= 0; i--) {
     const m = rest[i];
-    const t = estimateTokens(
-      typeof m?.content === "string" ? m.content : JSON.stringify(m?.content || "")
-    );
+    const t = contentTokens(m?.content);
     if (acc + t > MAX_TOKENS || kept.length >= MAX_MESSAGES) break;
     kept.unshift(m);
     acc += t;
