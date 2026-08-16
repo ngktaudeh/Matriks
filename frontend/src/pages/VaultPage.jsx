@@ -9,6 +9,7 @@ import { SearchBar } from "../components/Vault/SearchBar";
 import { SortDropdown } from "../components/Vault/SortDropdown";
 import { ItemList } from "../components/Vault/ItemList";
 import { ItemEditor } from "../components/Vault/ItemEditor";
+import { GeneratorModal } from "../components/Vault/GeneratorModal";
 import { CategoryManager } from "../components/Vault/CategoryManager";
 import { BulkActionsBar } from "../components/Vault/BulkActionsBar";
 import { ProfileSettings } from "../components/Auth/ProfileSettings";
@@ -41,6 +42,7 @@ export const VaultPage = () => {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -220,7 +222,12 @@ export const VaultPage = () => {
 
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-slate-950">
-      <Header onMenuClick={() => setMobileMenuOpen(true)} user={user} onLogout={signOut} />
+      <Header
+        onMenuClick={() => setMobileMenuOpen(true)}
+        user={user}
+        onLogout={signOut}
+        onOpenGenerator={() => setShowGenerator(true)}
+      />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
@@ -353,6 +360,8 @@ export const VaultPage = () => {
         item={editingItem}
         categories={categories}
       />
+
+      <GeneratorModal isOpen={showGenerator} onClose={() => setShowGenerator(false)} />
 
       <CategoryManager
         isOpen={showCategoryManager}

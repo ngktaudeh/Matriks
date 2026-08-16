@@ -1,10 +1,10 @@
 import React from "react";
-import { Menu, Shield } from "lucide-react";
+import { Menu, Shield, KeyRound } from "lucide-react";
 import { Button } from "../UI/Button";
 import { ThemeToggle } from "./ThemeToggle";
 import { APP_NAME } from "../../lib/constants";
 
-export const Header = ({ onMenuClick, user, onLogout }) => (
+export const Header = ({ onMenuClick, user, onLogout, onOpenGenerator }) => (
   <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/80">
     <div className="flex items-center gap-3">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick} aria-label="Buka menu">
@@ -18,6 +18,12 @@ export const Header = ({ onMenuClick, user, onLogout }) => (
       </div>
     </div>
     <div className="flex items-center gap-2">
+      {onOpenGenerator && (
+        <Button variant="outline" size="sm" onClick={onOpenGenerator} aria-label="Generator">
+          <KeyRound className="w-4 h-4" />
+          <span className="hidden sm:inline">Generator</span>
+        </Button>
+      )}
       <ThemeToggle />
       {user && (
         <div className="hidden sm:flex items-center gap-3">
