@@ -84,10 +84,13 @@ export const AIPage = () => {
   );
 
   useEffect(() => {
-    if (!authLoading && !adminLoading && !canUseAI) {
+    // Jangan redirect selama sesi/admin masih dimuat. `!user` menandakan sesi
+    // belum siap (mencegah redirect prematur → "cuma refresh terus").
+    if (!user || authLoading || adminLoading) return;
+    if (!canUseAI) {
       navigate("/", { replace: true });
     }
-  }, [authLoading, adminLoading, canUseAI, navigate]);
+  }, [user, authLoading, adminLoading, canUseAI, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
