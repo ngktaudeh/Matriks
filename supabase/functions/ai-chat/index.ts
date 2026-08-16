@@ -62,8 +62,6 @@ serve(async (req) => {
     (body.model as string) || Deno.env.get("AI_MODEL") || "kimi-k3";
   const messages = body.messages;
   const stream = body.stream !== false;
-  const temperature =
-    typeof body.temperature === "number" ? body.temperature : 0.6;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response(JSON.stringify({ error: "messages required" }), {
@@ -75,18 +73,26 @@ serve(async (req) => {
   // Hard limit history size
   const safeMessages = messages.slice(-24);
 
+  // kimi-k3 hanya mengizinkan temperature = 1 (fixed). Mengirim nilai lain
+  // (atau temperature sama sekali) → error 400 "invalid temperature".
+  const isKimiK3 = model === "kimi-k3" || model.startsWith("kimi-k3");
+  const payload: Record<string, unknown> = {
+    model,
+    messages: safeMessages,
+    stream,
+  };
+  if (!isKimiK3) {
+    payload.temperature =
+      typeof body.temperature === "number" ? body.temperature : 0.6;
+  }
+
   const upstream = await fetch("https://api.moonshot.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      messages: safeMessages,
-      stream,
-      temperature,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!upstream.ok) {
