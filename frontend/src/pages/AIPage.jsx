@@ -135,7 +135,12 @@ export const AIPage = () => {
   const callAI = useCallback(
     async (historyMessages, userContent) => {
       const apiKey = process.env.REACT_APP_KIMI_API_KEY || "";
-      const proxyUrl = process.env.REACT_APP_AI_PROXY_URL || "";
+      // Proxy (Edge Function) adalah jalur AMAN. Default: turunkan dari SUPABASE_URL
+      // bila REACT_APP_AI_PROXY_URL tidak di-set, supaya key tidak pernah ke browser.
+      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || "";
+      const proxyUrl =
+        process.env.REACT_APP_AI_PROXY_URL ||
+        (supabaseUrl ? `${supabaseUrl}/functions/v1/ai-chat` : "");
 
       const images = attachments.filter((a) => a.isImage);
       const texts = attachments.filter((a) => !a.isImage);
