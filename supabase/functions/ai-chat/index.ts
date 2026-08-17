@@ -261,8 +261,10 @@ serve(async (req) => {
       break;
     }
 
-    // Fase 2 — stream jawaban final ke client (seperti implementasi lama).
-    const finalRes = await callMoonshot(working, tools, true);
+    // Fase 2 — stream jawaban final ke client (seperti implementasi lama,
+    // tanpa tools agar model langsung menjawab dari hasil tool-result yang
+    // sudah di-relay di atas).
+    const finalRes = await callMoonshot(working, null, true);
     if (!finalRes.ok) {
       const errText = await finalRes.text();
       return json(
