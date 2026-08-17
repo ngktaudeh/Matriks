@@ -20,22 +20,22 @@ export const SortDropdown = ({ value, onChange }) => {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+        className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10"
       >
         <ArrowUpDown className="w-4 h-4" />
         <span className="hidden sm:inline">{selected?.label}</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-48 rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 z-20 mt-2 w-48 rounded-xl border border-white/10 bg-[#0a0a0e] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-150">
           {SORT_OPTIONS.map((option) => (
             <button
               key={option.value}
               onClick={() => { onChange(option.value); setOpen(false); }}
               className={`flex w-full items-center justify-between px-4 py-2 text-sm transition-colors ${
                 value === option.value
-                  ? "bg-slate-50 font-medium text-slate-900 dark:bg-slate-800 dark:text-white"
-                  : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                  ? "bg-[rgba(255,42,95,0.18)] font-medium text-white"
+                  : "text-white/60 hover:bg-white/10"
               }`}
             >
               {option.label}

@@ -1,5 +1,5 @@
-export const APP_NAME = "Matriks";
-export const APP_TAGLINE = "Knowledge Vault";
+export const APP_NAME = "Line Togel";
+export const APP_TAGLINE = "VIP Dashboard";
 
 export const DEFAULT_CATEGORIES = ["Passwords", "Notes", "API Keys", "Links", "Snippets"];
 

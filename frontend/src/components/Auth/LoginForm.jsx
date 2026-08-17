@@ -1,5 +1,8 @@
-import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, Shield } from "lucide-react";
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { useState } from "react";
+import { Mail, Lock, Eye, EyeOff, Highlighter } from "lucide-react";
 import { Button } from "../UI/Button";
 import { Input } from "../UI/Input";
 import { APP_NAME } from "../../lib/constants";
@@ -17,14 +20,17 @@ export const LoginForm = ({ onSubmit, onToggleMode, onForgotPassword, loading, e
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/30">
-          <Shield className="h-7 w-7 text-white" />
+        <div className="relative mx-auto mb-5 inline-flex">
+          <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-br from-[#ff2a5f] via-[#ff003c] to-[#ffd700] opacity-70 blur-lg" />
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff2a5f] to-[#800020] shadow-lg shadow-[#ff2a5f]/40">
+            <Highlighter className="h-8 w-8 text-white" />
+          </div>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
-          Masuk ke {APP_NAME}
+        <h1 className="font-display text-2xl font-extrabold tracking-wide text-white">
+          Masuk ke <span className="bg-gradient-to-r from-[#ff7a9e] to-[#ff2a5f] bg-clip-text text-transparent">{APP_NAME}</span>
         </h1>
-        <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-          Akses vault Anda dengan aman
+        <p className="mt-1.5 text-sm text-white/50">
+          Akses dashboard VIP Anda dengan aman
         </p>
       </div>
 
@@ -52,14 +58,14 @@ export const LoginForm = ({ onSubmit, onToggleMode, onForgotPassword, loading, e
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-[2.1rem] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+            className="absolute right-3 top-[2.1rem] text-white/40 hover:text-white"
           >
             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          <div className="rounded-xl border border-[#ff2a5f]/40 bg-[#ff2a5f]/10 p-3 text-sm text-[#ff7a9e]">
             {error}
           </div>
         )}
@@ -68,7 +74,7 @@ export const LoginForm = ({ onSubmit, onToggleMode, onForgotPassword, loading, e
           <button
             type="button"
             onClick={onForgotPassword}
-            className="text-sm font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300"
+            className="text-sm font-medium text-[#ff7a9e] hover:text-[#ff2a5f]"
           >
             Lupa password?
           </button>
@@ -76,7 +82,7 @@ export const LoginForm = ({ onSubmit, onToggleMode, onForgotPassword, loading, e
 
         <Button
           type="submit"
-          className="w-full bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/25 hover:brightness-110"
+          className="w-full btn-neon text-white shadow-lg shadow-[#ff2a5f]/30 hover:brightness-110"
           loading={loading}
           disabled={!email || !password}
         >
@@ -84,11 +90,11 @@ export const LoginForm = ({ onSubmit, onToggleMode, onForgotPassword, loading, e
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className="mt-6 text-center text-sm text-white/50">
         Belum punya akun?{" "}
         <button
           onClick={onToggleMode}
-          className="font-semibold text-violet-600 hover:underline dark:text-violet-400"
+          className="font-semibold text-[#ff7a9e] hover:underline"
         >
           Daftar sekarang
         </button>

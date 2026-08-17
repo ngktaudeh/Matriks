@@ -380,7 +380,7 @@ export const AIPage = () => {
     <div className="flex h-screen flex-col bg-transparent">
       {isBooting ? (
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-[#ff2a5f]" />
         </div>
       ) : (
         <div className="flex min-h-0 flex-1">
@@ -398,7 +398,7 @@ export const AIPage = () => {
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/70 px-3 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/60">
+            <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-[rgba(10,10,14,0.8)] px-3 backdrop-blur-md">
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -414,14 +414,14 @@ export const AIPage = () => {
                   Vault
                 </Button>
                 <div className="ml-1 hidden items-center gap-2 sm:flex">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-500/25">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff2a5f] to-[#800020] shadow-md shadow-[#ff2a5f]/30">
                     <Bot className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold leading-tight text-slate-900 dark:text-white">
-                      Matriks AI
+                    <h3 className="text-sm font-semibold leading-tight text-white">
+                      Line Togel AI
                     </h3>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    <p className="text-[10px] text-white/50">
                       Vault-aware · Ctrl+B · {items.length} item di konteks
                     </p>
                   </div>
@@ -448,7 +448,7 @@ export const AIPage = () => {
                     }
                   }}
                 >
-                  <Trash2 className="h-4 w-4 text-slate-400" />
+                  <Trash2 className="h-4 w-4 text-white/50" />
                 </Button>
               </div>
             </header>
@@ -471,12 +471,12 @@ export const AIPage = () => {
 
                 {loading && (
                   <div className="flex gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-500/25">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff2a5f] to-[#800020] shadow-md shadow-[#ff2a5f]/30">
                       <Bot className="h-4 w-4 text-white" />
                     </div>
-                    <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm dark:border-slate-700/80 dark:bg-slate-800/80">
-                      <Loader2 className="h-4 w-4 animate-spin text-violet-500" />
-                      <span className="text-xs text-slate-500">Menulis…</span>
+                    <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 shadow-sm">
+                      <Loader2 className="h-4 w-4 animate-spin text-[#ff2a5f]" />
+                      <span className="text-xs text-white/50">Menulis…</span>
                     </div>
                   </div>
                 )}
@@ -495,7 +495,7 @@ export const AIPage = () => {
                       {a.isImage ? (
                         <img src={a.dataUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />
                       ) : (
-                        <FileText className="h-4 w-4 text-fuchsia-300" />
+                        <FileText className="h-4 w-4 text-[#ff7a9e]" />
                       )}
                       <span className="max-w-[100px] truncate">{a.name}</span>
                       <button

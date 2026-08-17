@@ -8,9 +8,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Manrope', 'Inter', 'Avenir', '"Helvetica Neue"', 'Arial', 'sans-serif'],
-        display: ['Cinzel', 'Georgia', 'serif'],
-        serif: ['"EB Garamond"', 'Garamond', '"Times New Roman"', 'serif']
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'Manrope', 'Avenir', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        display: ['Orbitron', '"Plus Jakarta Sans"', 'Georgia', 'serif'],
+        serif: ['"Space Grotesk"', 'Garamond', '"Times New Roman"', 'serif']
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -51,6 +51,13 @@ module.exports = {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        neon: {
+          red: '#ff2a5f',
+          crimson: '#ff003c',
+          gold: '#ffd700',
+          cyan: '#00f0ff',
+          green: '#00ff88'
+        },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',

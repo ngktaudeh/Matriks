@@ -13,6 +13,8 @@ import { ItemDetailModal } from "../components/Vault/ItemDetailModal";
 import { GeneratorModal } from "../components/Vault/GeneratorModal";
 import { CategoryManager } from "../components/Vault/CategoryManager";
 import { BulkActionsBar } from "../components/Vault/BulkActionsBar";
+import { HighlighterSuite } from "../components/Vault/HighlighterSuite";
+import { PrediksiTogel } from "../components/Vault/PrediksiTogel";
 import { ProfileSettings } from "../components/Auth/ProfileSettings";
 import { ConfirmDialog } from "../components/UI/ConfirmDialog";
 import { Button } from "../components/UI/Button";
@@ -47,6 +49,7 @@ export const VaultPage = () => {
   const [showGenerator, setShowGenerator] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [view, setView] = useState("vault"); // vault | highlighter | prediksi
 
   // State konfirmasi hapus
   const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'single'|'bulk', id?, ids? }
@@ -239,11 +242,15 @@ export const VaultPage = () => {
             activeCategory={activeCategory}
             onCategoryChange={(cat) => {
               setActiveCategory(cat);
+              setView("vault");
               setSelectedIds([]);
             }}
             onAddCategory={() => setShowCategoryManager(true)}
             onOpenTrash={() => navigate("/trash")}
             onOpenSettings={() => setShowSettings(true)}
+            onOpenHighlighter={() => setView("highlighter")}
+            onOpenPrediksi={() => setView("prediksi")}
+            onOpenProfile={() => setShowSettings(true)}
             onLogout={signOut}
             loading={false}
             itemCounts={itemCounts}
@@ -259,6 +266,7 @@ export const VaultPage = () => {
             activeCategory={activeCategory}
             onCategoryChange={(cat) => {
               setActiveCategory(cat);
+              setView("vault");
               setMobileMenuOpen(false);
               setSelectedIds([]);
             }}
@@ -268,6 +276,9 @@ export const VaultPage = () => {
             }}
             onOpenTrash={() => { navigate("/trash"); setMobileMenuOpen(false); }}
             onOpenSettings={() => { setShowSettings(true); setMobileMenuOpen(false); }}
+            onOpenHighlighter={() => { setView("highlighter"); setMobileMenuOpen(false); }}
+            onOpenPrediksi={() => { setView("prediksi"); setMobileMenuOpen(false); }}
+            onOpenProfile={() => { setShowSettings(true); setMobileMenuOpen(false); }}
             onLogout={signOut}
             loading={false}
             itemCounts={itemCounts}
@@ -278,7 +289,13 @@ export const VaultPage = () => {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white/80 px-4 py-3 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80">
+          {view === "highlighter" ? (
+            <HighlighterSuite />
+          ) : view === "prediksi" ? (
+            <PrediksiTogel />
+          ) : (
+          <>
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[rgba(255,42,95,0.2)] bg-[#0a0a0e]/80 px-4 py-3 backdrop-blur-md">
             <SearchBar value={search} onChange={setSearch} />
             <div className="flex items-center gap-2">
               <SortDropdown value={sortBy} onChange={setSortBy} />
@@ -342,6 +359,8 @@ export const VaultPage = () => {
               onOpen={setDetailItem}
             />
           </div>
+          </>
+          )}
         </main>
       </div>
 

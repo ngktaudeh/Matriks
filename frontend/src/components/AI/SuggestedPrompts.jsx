@@ -6,50 +6,50 @@ const PROMPTS = [
     icon: Search,
     label: "Cari item",
     text: "Cari item di vault saya yang berkaitan dengan password atau login",
-    color: "from-blue-500 to-cyan-500",
+    color: "from-[#ff2a5f] to-[#ff003c]",
   },
   {
     icon: List,
     label: "Ringkas vault",
     text: "Ringkas isi vault saya per kategori. Sebutkan berapa item di tiap kategori.",
-    color: "from-violet-500 to-purple-500",
+    color: "from-[#00f0ff] to-[#0284c7]",
   },
   {
     icon: Key,
     label: "Password lemah?",
     text: "Bantu saya cek apakah ada password yang terlihat lemah atau perlu diganti di vault.",
-    color: "from-amber-500 to-orange-500",
+    color: "from-[#ffd700] to-[#ff8800]",
   },
   {
     icon: FileText,
     label: "Buat catatan",
     text: "Bantu saya menyusun template catatan proyek yang rapi untuk disimpan di vault.",
-    color: "from-emerald-500 to-teal-500",
+    color: "from-[#00ff88] to-[#059669]",
   },
   {
     icon: Tag,
     label: "Saran tag",
     text: "Berdasarkan isi vault saya, sarankan skema tag yang konsisten.",
-    color: "from-pink-500 to-rose-500",
+    color: "from-[#ff2a5f] to-[#800020]",
   },
   {
     icon: Sparkles,
     label: "Ide organisasi",
     text: "Bagaimana cara terbaik mengorganisir vault pengetahuan saya agar mudah dicari?",
-    color: "from-indigo-500 to-blue-500",
+    color: "from-[#a855f7] to-[#7c3aed]",
   },
 ];
 
 export const SuggestedPrompts = ({ onSelect }) => (
   <div className="mx-auto w-full max-w-2xl px-2">
     <div className="mb-8 text-center">
-      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/25">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff2a5f] to-[#800020] shadow-lg shadow-[#ff2a5f]/30">
         <Sparkles className="h-8 w-8 text-white" />
       </div>
-      <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
-        Matriks AI
+      <h2 className="font-display text-xl font-bold tracking-tight text-white">
+        Line Togel AI
       </h2>
-      <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+      <p className="mt-1.5 text-sm text-white/50">
         Asisten yang paham isi vault kamu. Langsung tanya aja.
       </p>
     </div>
@@ -59,7 +59,7 @@ export const SuggestedPrompts = ({ onSelect }) => (
         <button
           key={p.label}
           onClick={() => onSelect?.(p.text)}
-          className="group flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-slate-700/80 dark:bg-slate-900 dark:hover:border-slate-600"
+          className="group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-[#ff2a5f]/50 hover:shadow-[0_0_20px_rgba(255,42,95,0.2)]"
         >
           <div
             className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${p.color} shadow-sm`}
@@ -67,10 +67,10 @@ export const SuggestedPrompts = ({ onSelect }) => (
             <p.icon className="h-4 w-4 text-white" />
           </div>
           <div>
-            <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
+            <div className="text-sm font-medium text-white">
               {p.label}
             </div>
-            <div className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <div className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-white/50">
               {p.text}
             </div>
           </div>

@@ -45,21 +45,21 @@ export const Modal = ({ isOpen, onClose, title, children, size = "md", footer = 
       <div
         ref={contentRef}
         className={`
-          w-full ${sizeClasses[size]} bg-white dark:bg-slate-900 rounded-2xl shadow-2xl
+          w-full ${sizeClasses[size]} bg-[#0a0a0e] rounded-2xl shadow-2xl
           transform transition-all duration-200 ease-out
           animate-in zoom-in-95 fade-in duration-200
-          border border-slate-200 dark:border-slate-700
+          border border-white/10
         `}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Tutup">
             <X className="w-5 h-5" />
           </Button>
         </div>
         <div className="px-6 py-5">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 rounded-b-2xl">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 bg-black/30 rounded-b-2xl">
             {footer}
           </div>
         )}

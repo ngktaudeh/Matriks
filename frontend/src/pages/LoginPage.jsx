@@ -46,9 +46,9 @@ export const LoginPage = () => {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
-      <div className="orb top-0 left-1/4 h-80 w-80 bg-purple-500/40" />
-      <div className="orb bottom-10 right-10 h-64 w-64 bg-pink-500/30" style={{ animationDelay: "2s" }} />
-      <div className="orb top-1/3 right-1/4 h-48 w-48 bg-cyan-400/20" style={{ animationDelay: "4s" }} />
+      <div className="orb top-0 left-1/4 h-80 w-80 bg-[#ff2a5f]/40" />
+      <div className="orb bottom-10 right-10 h-64 w-64 bg-[#00f0ff]/20" style={{ animationDelay: "2s" }} />
+      <div className="orb top-1/3 right-1/4 h-48 w-48 bg-[#ffd700]/20" style={{ animationDelay: "4s" }} />
 
       <div className="relative w-full max-w-md float-card glass shimmer p-8">
         {mode === "login" && (

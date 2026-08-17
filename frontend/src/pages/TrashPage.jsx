@@ -58,21 +58,21 @@ export const TrashPage = () => {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-white dark:bg-slate-950">
+    <div className="flex h-screen flex-col bg-[#09090d]">
       <Header user={user} onLogout={signOut} />
 
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto">
-          <div className="flex items-center gap-3 border-b border-slate-100 bg-white/80 px-4 py-3 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80">
+          <div className="flex items-center gap-3 border-b border-[rgba(255,42,95,0.2)] bg-[#0a0a0e]/80 px-4 py-3 backdrop-blur-md">
             <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               Kembali
             </Button>
             <div className="flex items-center gap-2">
               <Trash2 className="h-5 w-5 text-red-500" />
-              <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Tempat Sampah</h1>
+              <h1 className="text-lg font-semibold text-white">Tempat Sampah</h1>
             </div>
-            <span className="ml-auto text-xs text-slate-500 dark:text-slate-400">
+            <span className="ml-auto text-xs text-white/50">
               Item dihapus permanen otomatis setelah 30 hari
             </span>
           </div>

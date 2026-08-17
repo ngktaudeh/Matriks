@@ -4,44 +4,62 @@
 
 @layer base {
   :root {
-    --background: 250 35% 7%;
-    --foreground: 250 20% 96%;
-    --card: 250 30% 10%;
-    --card-foreground: 250 20% 96%;
-    --primary: 262 83% 65%;
+    --background: 240 22% 4%;
+    --foreground: 0 0% 100%;
+    --card: 240 20% 7%;
+    --card-foreground: 0 0% 100%;
+    --primary: 345 100% 58%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 250 25% 14%;
-    --secondary-foreground: 250 20% 90%;
-    --muted: 250 25% 14%;
-    --muted-foreground: 250 15% 60%;
-    --accent: 262 40% 18%;
-    --accent-foreground: 262 80% 85%;
-    --destructive: 0 70% 50%;
+    --secondary: 240 18% 12%;
+    --secondary-foreground: 240 10% 88%;
+    --muted: 240 18% 12%;
+    --muted-foreground: 240 10% 60%;
+    --accent: 345 100% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 250 20% 18%;
-    --input: 250 20% 18%;
-    --ring: 262 83% 65%;
+    --border: 240 12% 18%;
+    --input: 240 12% 18%;
+    --ring: 345 100% 58%;
     --radius: 0.85rem;
   }
 
   .dark {
-    --background: 250 35% 7%;
-    --foreground: 250 20% 96%;
-    --card: 250 30% 10%;
-    --card-foreground: 250 20% 96%;
-    --primary: 262 83% 65%;
+    --background: 240 22% 4%;
+    --foreground: 0 0% 100%;
+    --card: 240 20% 7%;
+    --card-foreground: 0 0% 100%;
+    --primary: 345 100% 58%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 250 25% 14%;
-    --secondary-foreground: 250 20% 90%;
-    --muted: 250 25% 14%;
-    --muted-foreground: 250 15% 60%;
-    --accent: 262 40% 18%;
-    --accent-foreground: 262 80% 85%;
-    --destructive: 0 70% 50%;
+    --secondary: 240 18% 12%;
+    --secondary-foreground: 240 10% 88%;
+    --muted: 240 18% 12%;
+    --muted-foreground: 240 10% 60%;
+    --accent: 345 100% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 250 20% 18%;
-    --input: 250 20% 18%;
-    --ring: 262 83% 65%;
+    --border: 240 12% 18%;
+    --input: 240 12% 18%;
+    --ring: 345 100% 58%;
+  }
+
+  /* ===== Neon palette (BLACK Dashboard VIP / Line Togel) ===== */
+  :root {
+    --neon-red: #ff2a5f;
+    --neon-crimson: #ff003c;
+    --neon-gold: #ffd700;
+    --neon-cyan: #00f0ff;
+    --neon-green: #00ff88;
+    --bg-main: #09090d;
+    --bg-card: rgba(14, 14, 20, 0.85);
+    --bg-card-hover: rgba(22, 22, 30, 0.95);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-accent: rgba(255, 42, 95, 0.35);
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --glow-red: 0 0 25px rgba(255, 42, 95, 0.45);
   }
 
   html {
@@ -50,13 +68,14 @@
 
   body {
     @apply antialiased;
-    color: #f4f1fa;
+    color: #f8fafc;
+    font-family: "Plus Jakarta Sans", "Inter", "Manrope", sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     background:
-      radial-gradient(1200px 600px at 10% -10%, rgba(139, 92, 246, 0.16), transparent 50%),
-      radial-gradient(900px 500px at 90% 0%, rgba(99, 102, 241, 0.12), transparent 45%),
-      radial-gradient(1000px 600px at 50% 120%, rgba(217, 70, 239, 0.10), transparent 55%),
-      #0a0712;
+      radial-gradient(1200px 600px at 10% -10%, rgba(255, 42, 95, 0.16), transparent 50%),
+      radial-gradient(900px 500px at 90% 0%, rgba(0, 240, 255, 0.10), transparent 45%),
+      radial-gradient(1000px 600px at 50% 120%, rgba(255, 42, 95, 0.10), transparent 55%),
+      #09090d;
     background-attachment: fixed;
   }
 
@@ -72,12 +91,16 @@
     background: rgba(255, 255, 255, 0.12);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(168, 85, 247, 0.4);
+    background: rgba(255, 42, 95, 0.5);
   }
 
   ::selection {
-    background: rgba(168, 85, 247, 0.4);
+    background: rgba(255, 42, 95, 0.4);
     color: #fff;
+  }
+
+  h1, h2, h3, h4, .font-display, .brand-name, .page-title-text {
+    font-family: "Orbitron", "Plus Jakarta Sans", sans-serif;
   }
 }
 
@@ -104,30 +127,30 @@
 
   /* ========== Glass (kaca buram) ========== */
   .glass {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.05);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   /* ========== Float card (3D terangkat) ========== */
   .float-card {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 1rem;
+    border-radius: 1.25rem;
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
     box-shadow:
-      0 10px 40px -12px rgba(0, 0, 0, 0.55),
+      0 10px 40px -12px rgba(0, 0, 0, 0.6),
       inset 0 0 0 1px rgba(255, 255, 255, 0.05);
     transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   }
   .float-card:hover {
     transform: translateY(-4px);
-    border-color: rgba(168, 85, 247, 0.5);
+    border-color: rgba(255, 42, 95, 0.5);
     box-shadow:
-      0 22px 50px -12px rgba(0, 0, 0, 0.65),
-      0 0 32px -6px rgba(168, 85, 247, 0.35);
+      0 22px 50px -12px rgba(0, 0, 0, 0.7),
+      0 0 32px -6px rgba(255, 42, 95, 0.4);
   }
 
   /* ========== Shimmer (kilau menyapu) ========== */
@@ -154,17 +177,17 @@
 
   /* ========== Button neon ========== */
   .btn-neon {
-    background: linear-gradient(135deg, #8b5cf6, #d946ef, #22d3ee);
+    background: linear-gradient(135deg, #ff2a5f, #ff003c, #ff8800);
     background-size: 220% 220%;
     animation: gradientShift 5s ease infinite;
     box-shadow:
-      0 0 20px rgba(168, 85, 247, 0.5),
-      0 4px 20px rgba(217, 70, 239, 0.4);
+      0 0 20px rgba(255, 42, 95, 0.5),
+      0 4px 20px rgba(255, 42, 95, 0.4);
   }
   .btn-neon:hover {
     box-shadow:
-      0 0 36px rgba(168, 85, 247, 0.75),
-      0 8px 30px rgba(217, 70, 239, 0.55);
+      0 0 36px rgba(255, 42, 95, 0.8),
+      0 8px 30px rgba(255, 42, 95, 0.6);
     filter: brightness(1.1);
   }
   @keyframes gradientShift {
@@ -191,8 +214,8 @@
     animation: glowPulse 2.5s ease-in-out infinite;
   }
   @keyframes glowPulse {
-    0%, 100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
-    50% { box-shadow: 0 0 35px rgba(168, 85, 247, 0.8); }
+    0%, 100% { box-shadow: 0 0 15px rgba(255, 42, 95, 0.4); }
+    50% { box-shadow: 0 0 35px rgba(255, 42, 95, 0.8); }
   }
 
   /* ========== Float Y (mengambang) ========== */
@@ -207,13 +230,13 @@
   /* ========== Input neon ========== */
   .input-neon {
     box-shadow:
-      0 0 0 1px rgba(168, 85, 247, 0.22),
-      0 0 22px -6px rgba(168, 85, 247, 0.35);
+      0 0 0 1px rgba(255, 42, 95, 0.22),
+      0 0 22px -6px rgba(255, 42, 95, 0.35);
   }
   .input-neon:focus-within {
     box-shadow:
-      0 0 0 1px rgba(168, 85, 247, 0.5),
-      0 0 32px -4px rgba(168, 85, 247, 0.55);
+      0 0 0 1px rgba(255, 42, 95, 0.5),
+      0 0 32px -4px rgba(255, 42, 95, 0.6);
   }
 }
 
@@ -245,7 +268,7 @@
   overflow: hidden;
 }
 
-/* ========== Markdown (Matriks AI) ========== */
+/* ========== Markdown (Line Togel AI) ========== */
 .md-body {
   line-height: 1.65;
   word-break: break-word;
@@ -286,7 +309,7 @@
 .md-body .md-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.85em;
-  background: rgba(167, 139, 250, 0.16);
+  background: rgba(255, 42, 95, 0.16);
   padding: 0.1em 0.35em;
   border-radius: 0.3em;
 }
@@ -306,7 +329,7 @@
   white-space: pre;
 }
 .md-body .md-link {
-  color: #c4b5fd;
+  color: #ff7a9e;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -328,6 +351,6 @@
   text-align: left;
 }
 .md-body .md-table th {
-  background: rgba(139, 92, 246, 0.15);
+  background: rgba(255, 42, 95, 0.15);
   font-weight: 600;
 }

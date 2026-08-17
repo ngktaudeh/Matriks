@@ -13,9 +13,9 @@ export const BulkActionsBar = ({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="sticky top-16 z-20 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg dark:border-slate-700 dark:bg-slate-900 animate-in slide-in-from-top-2">
+    <div className="sticky top-16 z-20 flex items-center justify-between rounded-xl border border-[rgba(255,42,95,0.35)] bg-[#0a0a0e]/95 px-4 py-3 shadow-lg animate-in slide-in-from-top-2">
       <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-slate-900 dark:text-white">
+        <span className="text-sm font-medium text-white">
           {selectedCount} item dipilih
         </span>
         <Button variant="ghost" size="sm" onClick={onClear}>

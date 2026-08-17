@@ -1,21 +1,21 @@
 import React from "react";
-import { Menu, Shield, KeyRound } from "lucide-react";
+import { Menu, Shield, KeyRound, Highlighter } from "lucide-react";
 import { Button } from "../UI/Button";
 import { ThemeToggle } from "./ThemeToggle";
 import { APP_NAME } from "../../lib/constants";
 
 export const Header = ({ onMenuClick, user, onLogout, onOpenGenerator }) => (
-  <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/10 bg-black/30 px-4 backdrop-blur-xl">
+  <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[rgba(255,42,95,0.35)] bg-[rgba(14,14,20,0.88)] px-4 backdrop-blur-xl">
     <div className="flex items-center gap-3">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick} aria-label="Buka menu">
         <Menu className="w-5 h-5" />
       </Button>
       <div className="flex items-center gap-2.5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 via-fuchsia-500 to-cyan-400 shadow-lg shadow-purple-500/40 glow-pulse">
-          <Shield className="h-5 w-5 text-white" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff2a5f] to-[#800020] shadow-lg shadow-[#ff2a5f]/40 glow-pulse">
+          <Highlighter className="h-5 w-5 text-white" />
         </div>
-        <span className="bg-gradient-to-r from-white via-fuchsia-100 to-cyan-200 bg-clip-text text-lg font-bold tracking-tight text-transparent">
-          {APP_NAME}
+        <span className="font-display text-lg font-extrabold tracking-wide bg-gradient-to-r from-white via-[#ffb3c1] to-[#ff2a5f] bg-clip-text text-transparent">
+          LINE TOGEL
         </span>
       </div>
     </div>
