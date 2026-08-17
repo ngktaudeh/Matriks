@@ -10,11 +10,32 @@ import {
   Sparkles,
   UserCircle,
   Home,
+  Folder,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "../UI/Button";
 import { Tooltip } from "../UI/Tooltip";
 import { SidebarSkeleton } from "../UI/Skeleton";
 import { APP_NAME } from "../../lib/constants";
+
+/* Gaya seragam untuk semua item menu (Menu Utama, Alat & Fitur, Kategori) */
+const ICON_BOX =
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-all duration-200";
+const ICON_BOX_IDLE =
+  ICON_BOX + " border-white/10 bg-white/5 text-white/80";
+const ICON_BOX_ACTIVE =
+  ICON_BOX + " !border-[#ff2a5f] !bg-[#ff2a5f] !text-white shadow-[0_4px_12px_rgba(255,42,95,0.5)]";
+
+const ITEM_BASE =
+  "flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-200";
+const ITEM_IDLE =
+  ITEM_BASE + " text-white/55 hover:bg-[rgba(255,42,95,0.12)] hover:text-white hover:translate-x-1";
+const ITEM_ACTIVE =
+  ITEM_BASE +
+  " bg-gradient-to-r from-[rgba(255,42,95,0.25)] to-[rgba(255,0,60,0.4)] text-white border border-[rgba(255,42,95,0.4)] shadow-[0_6px_18px_rgba(255,42,95,0.25)]";
+
+const COUNT_BADGE_ACTIVE = "rounded-full bg-white/20 px-2 py-0.5 text-xs text-white";
+const COUNT_BADGE_IDLE = "rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/50";
 
 export const Sidebar = ({
   categories,
@@ -38,16 +59,30 @@ export const Sidebar = ({
     { id: "trash", label: "Tempat Sampah", icon: Trash2, count: trashCount || 0 },
   ];
 
+  const toolItems = [
+    { id: "highlighter", label: "Highlighter Suite", icon: Highlighter, onClick: onOpenHighlighter },
+    { id: "prediksi", label: "Prediksi Togel", icon: Sparkles, onClick: onOpenPrediksi },
+    { id: "profile", label: "Profil", icon: UserCircle, onClick: onOpenProfile },
+  ];
+
   const isActive = (item) =>
     activeCategory === item.id || (item.id === "all" && !activeCategory);
 
-  const menuLink =
-    "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 " +
-    "text-white/55 hover:bg-[rgba(255,42,95,0.12)] hover:text-white hover:translate-x-1";
-
-  const menuIconBox =
-    "flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 " +
-    "text-white/80 transition-all duration-200";
+  const renderItem = ({ icon: Icon, label, count, active, onClick }) => (
+    <button key={label} onClick={onClick} className={active ? ITEM_ACTIVE : ITEM_IDLE}>
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span className={active ? ICON_BOX_ACTIVE : ICON_BOX_IDLE}>
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="truncate">{label}</span>
+      </span>
+      {typeof count === "number" && count > 0 ? (
+        <span className={active ? COUNT_BADGE_ACTIVE : COUNT_BADGE_IDLE}>{count}</span>
+      ) : (
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />
+      )}
+    </button>
+  );
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-white/10 bg-[rgba(10,10,14,0.85)] backdrop-blur-xl">
@@ -73,72 +108,36 @@ export const Sidebar = ({
           Menu Utama
         </p>
         <nav className="space-y-1.5">
-          {navItems.map((item) => {
-            const active = isActive(item);
-            const Icon = item.icon;
-            const onClick =
-              item.id === "trash"
-                ? onOpenTrash
-                : () =>
-                    onCategoryChange(
-                      item.id === "all" ? null : item.id === "favorites" ? "favorites" : item.id
-                    );
-            return (
-              <button
-                key={item.id}
-                onClick={onClick}
-                className={`
-                  flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold
-                  transition-all duration-200
-                  ${
-                    active
-                      ? "bg-gradient-to-r from-[rgba(255,42,95,0.25)] to-[rgba(255,0,60,0.4)] text-white border border-[rgba(255,42,95,0.4)] shadow-[0_6px_18px_rgba(255,42,95,0.25)]"
-                      : "text-white/55 hover:bg-[rgba(255,42,95,0.12)] hover:text-white hover:translate-x-1"
-                  }
-                `}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className={menuIconBox + (active ? " !bg-[#ff2a5f] !text-white !border-[#ff2a5f]" : "")}>
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span>{item.label}</span>
-                </div>
-                {item.count > 0 && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      active ? "bg-white/20 text-white" : "bg-white/10 text-white/50"
-                    }`}
-                  >
-                    {item.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {navItems.map((item) =>
+            renderItem({
+              icon: item.icon,
+              label: item.label,
+              count: item.count,
+              active: isActive(item),
+              onClick:
+                item.id === "trash"
+                  ? onOpenTrash
+                  : () =>
+                      onCategoryChange(
+                        item.id === "all" ? null : item.id === "favorites" ? "favorites" : item.id
+                      ),
+            })
+          )}
         </nav>
 
         <p className="mb-2 mt-6 px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/40">
           Alat & Fitur
         </p>
         <nav className="space-y-1.5">
-          <button onClick={onOpenHighlighter} className={menuLink}>
-            <span className={menuIconBox}>
-              <Highlighter className="h-4 w-4" />
-            </span>
-            <span>Highlighter Suite</span>
-          </button>
-          <button onClick={onOpenPrediksi} className={menuLink}>
-            <span className={menuIconBox}>
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <span>Prediksi Togel</span>
-          </button>
-          <button onClick={onOpenProfile} className={menuLink}>
-            <span className={menuIconBox}>
-              <UserCircle className="h-4 w-4" />
-            </span>
-            <span>Profil</span>
-          </button>
+          {toolItems.map((item) =>
+            renderItem({
+              icon: item.icon,
+              label: item.label,
+              count: null,
+              active: false,
+              onClick: item.onClick,
+            })
+          )}
         </nav>
 
         <p className="mb-2 mt-6 px-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/40">
@@ -155,27 +154,16 @@ export const Sidebar = ({
         {loading ? (
           <SidebarSkeleton />
         ) : (
-          <div className="space-y-0.5">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => onCategoryChange(cat.name)}
-                className={`
-                  flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm
-                  transition-all duration-200
-                  ${
-                    activeCategory === cat.name
-                      ? "bg-[rgba(255,42,95,0.15)] font-medium text-white border border-[rgba(255,42,95,0.3)]"
-                      : "text-white/45 hover:bg-white/8 hover:text-white/80"
-                  }
-                `}
-              >
-                <span className="truncate">{cat.name}</span>
-                {itemCounts?.[cat.name] > 0 && (
-                  <span className="text-xs text-white/35">{itemCounts[cat.name]}</span>
-                )}
-              </button>
-            ))}
+          <div className="space-y-1.5">
+            {categories.map((cat) =>
+              renderItem({
+                icon: Folder,
+                label: cat.name,
+                count: itemCounts?.[cat.name] || 0,
+                active: activeCategory === cat.name,
+                onClick: () => onCategoryChange(cat.name),
+              })
+            )}
           </div>
         )}
       </div>
