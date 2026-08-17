@@ -85,7 +85,7 @@ export const Sidebar = ({
   );
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-white/10 bg-[rgba(10,10,14,0.85)] backdrop-blur-xl">
+    <aside className="flex h-full w-80 flex-col border-r border-white/10 bg-[rgba(10,10,14,0.85)] backdrop-blur-xl">
       {/* Branding header */}
       <div className="border-b border-white/10 px-4 py-5">
         <div className="flex items-center gap-3">

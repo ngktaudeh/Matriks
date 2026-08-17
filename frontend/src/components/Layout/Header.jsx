@@ -5,13 +5,13 @@ import { ThemeToggle } from "./ThemeToggle";
 import { APP_NAME } from "../../lib/constants";
 
 export const Header = ({ onMenuClick, user, onLogout, onOpenGenerator }) => (
-  <header className="relative sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[rgba(255,42,95,0.35)] bg-[rgba(14,14,20,0.88)] px-4 backdrop-blur-xl">
+  <header className="relative sticky top-0 z-30 flex h-20 items-center justify-between border-b border-[rgba(255,42,95,0.35)] bg-[rgba(14,14,20,0.88)] px-4 backdrop-blur-xl">
     {/* Logo GIF di tengah atas */}
     <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block">
       <img
         src="https://cdn.areabermain.club/assets/cdn/az6/2024/05/29/20240529/36be17c88695a583bcdac308b12bc4e4/linetogel-gif-icooun.gif"
         alt="Line Togel"
-        className="h-12 w-auto object-contain drop-shadow-[0_0_12px_rgba(255,42,95,0.5)]"
+        className="h-16 w-auto object-contain drop-shadow-[0_0_14px_rgba(255,42,95,0.6)]"
       />
     </div>
 

@@ -20,7 +20,7 @@ export const MobileDrawer = ({ isOpen, onClose, children }) => {
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      <div className="absolute left-0 top-0 h-full w-72 bg-[#0a0a0e] shadow-2xl transform transition-transform duration-300 ease-out animate-in slide-in-from-left border-r border-[rgba(255,42,95,0.3)]">
+      <div className="absolute left-0 top-0 h-full w-80 bg-[#0a0a0e] shadow-2xl transform transition-transform duration-300 ease-out animate-in slide-in-from-left border-r border-[rgba(255,42,95,0.3)]">
         <div className="flex items-center justify-end p-4">
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Tutup menu">
             <X className="w-5 h-5" />
