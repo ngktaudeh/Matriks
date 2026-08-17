@@ -7,7 +7,8 @@
  *
  * Secrets:
  *   supabase secrets set KIMI_API_KEY=***
- *   supabase secrets set AI_MODEL=kimi-k3   (opsional)
+ *   supabase secrets set AI_MODEL=kimi-k3            (opsional, default kimi-k3)
+ *   supabase secrets set ENABLE_WEB_SEARCH=true      (opsional, default true)
  *   supabase secrets set ALLOWED_ORIGINS=https://matriks-rouge.vercel.app   (opsional, comma-separated)
  *
  * Frontend: set REACT_APP_AI_PROXY_URL=https://YOUR_PROJECT.supabase.co/functions/v1/ai-chat
@@ -22,6 +23,8 @@ const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "")
   .map((s) => s.trim())
   .filter(Boolean);
 const REQUIRE_JWT = Deno.env.get("REQUIRE_JWT") !== "false"; // default: wajib auth
+const ENABLE_WEB_SEARCH = Deno.env.get("ENABLE_WEB_SEARCH") !== "false"; // default: aktif
+const MAX_TOOL_ROUNDS = 4; // batas loop tool-calling agar tidak infinite loop / biaya membengkak
 const MAX_MESSAGES = 24;
 const MAX_TOKENS = 40000; // estimasi kasar; di bawah limit model 256K
 
@@ -173,7 +176,118 @@ serve(async (req) => {
 
   // kimi-k3 hanya mengizinkan temperature = 1 (fixed). Mengirim nilai lain
   // (atau temperature sama sekali) → error 400 "invalid temperature".
+  // Catatan: ada laporan bug di kimi-k3 pada langkah echo tool-result untuk
+  // $web_search ("tokenization failed" / HTTP 400), sedangkan kimi-k2.6 normal.
+  // Model dibaca dari env var AI_MODEL supaya gampang di-switch tanpa ubah code
+  // kalau bug itu muncul (mis. set AI_MODEL=kimi-k2.6).
   const isKimiK3 = model === "kimi-k3" || model.startsWith("kimi-k3");
+
+  // Helper untuk memanggil Moonshot API (non-stream maupun stream).
+  const callMoonshot = (msgs, tools, useStream) => {
+    const payload: Record<string, unknown> = {
+      model,
+      messages: msgs,
+      stream: useStream,
+    };
+    if (!isKimiK3) {
+      payload.temperature =
+        typeof body.temperature === "number" ? body.temperature : 0.6;
+    }
+    if (tools) {
+      payload.tools = tools;
+    }
+    return fetch("https://api.moonshot.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  };
+
+  // ---------- Alur web search (2 fase) ----------
+  if (ENABLE_WEB_SEARCH) {
+    const tools = [
+      { type: "builtin_function", function: { name: "$web_search" } },
+    ];
+    const working = kept.slice(); // salinan pesan yang bisa dimutasi untuk relay tool-call
+
+    // Fase 1 — resolve tool-call (non-stream).
+    // Kimi mengeksekusi $web_search di server mereka; kita hanya relay hasil
+    // arguments sebagai role:"tool" dan memanggil ulang sampai tidak ada
+    // tool_calls lagi, atau mencapai MAX_TOOL_ROUNDS.
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const res = await callMoonshot(working, tools, false);
+      if (!res.ok) {
+        const errText = await res.text();
+        return json(
+          {
+            error: "Upstream AI error",
+            status: res.status,
+            detail: errText.slice(0, 500),
+          },
+          res.status,
+          corsHeaders
+        );
+      }
+
+      const data = await res.json();
+      const msg = data.choices?.[0]?.message;
+      const reason = data.choices?.[0]?.finish_reason;
+
+      if (
+        reason === "tool_calls" &&
+        Array.isArray(msg?.tool_calls) &&
+        msg.tool_calls.length > 0
+      ) {
+        // Relay: echo balik tool-call sebagai pesan assistant + pesan tool.
+        working.push({
+          role: "assistant",
+          content: msg.content ?? "",
+          tool_calls: msg.tool_calls,
+        });
+        for (const tc of msg.tool_calls) {
+          working.push({
+            role: "tool",
+            content: tc.function?.arguments ?? "",
+            tool_call_id: tc.id,
+          });
+        }
+        continue;
+      }
+
+      // Tidak ada tool_calls lagi → resolve selesai.
+      break;
+    }
+
+    // Fase 2 — stream jawaban final ke client (seperti implementasi lama).
+    const finalRes = await callMoonshot(working, tools, true);
+    if (!finalRes.ok) {
+      const errText = await finalRes.text();
+      return json(
+        {
+          error: "Upstream AI error",
+          status: finalRes.status,
+          detail: errText.slice(0, 500),
+        },
+        finalRes.status,
+        corsHeaders
+      );
+    }
+
+    return new Response(finalRes.body, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  }
+
+  // ---------- Tanpa web search (perilaku lama) ----------
   const payload: Record<string, unknown> = {
     model,
     messages: kept,

@@ -43,6 +43,7 @@ Aturan keras:
 - Prioritaskan data dari konteks vault di bawah
 - Jawab pakai bahasa user (biasanya Indonesia)
 - Format jawaban rapi (list, bold, code) biar mudah dibaca
+- Kalau pertanyaan user menyangkut harga, berita, tanggal/versi terbaru, status orang/perusahaan saat ini, atau hal apa pun yang bisa berubah dari waktu ke waktu — WAJIB panggil tool $web_search dulu sebelum menjawab. Jangan jawab dari ingatan untuk hal yang time-sensitive. Kalau memakai hasil pencarian, sebutkan sumbernya secara singkat di jawaban.
 
 Konteks vault user saat ini:
 `;
