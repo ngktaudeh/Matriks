@@ -146,6 +146,8 @@ export const HighlighterSuite = ({ onClose }) => {
                   <p className="mb-7 text-sm text-white/85">{s.desc}</p>
                   <a
                     href={`${process.env.PUBLIC_URL || ""}/${s.id}.user.js`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="mt-auto inline-block rounded-full px-6 py-3 font-semibold text-[#0a0a0e] shadow-[0_5px_15px_rgba(255,42,95,0.4)] transition-all hover:scale-[1.02]"
                     style={s.btnStyle}
                   >
